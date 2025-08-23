@@ -11,7 +11,7 @@ dotenv.config(); // Load environment variables from .env file
 // middlewares
 app.use(
   cors({
-    origin: "http://localhost:5173", // Allow requests from the frontend
+    origin: "https://vichar-three.vercel.app/", // Allow requests from the frontend
   })
 ); // Enable CORS for all routes
 app.use(rateLimiter); // Apply rate limiting middleware
