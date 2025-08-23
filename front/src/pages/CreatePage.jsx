@@ -1,0 +1,103 @@
+import { ArrowLeftIcon } from "lucide-react";
+import { useState } from "react";
+import toast from "react-hot-toast";
+import api from "../libs/axios";
+import { Link, useNavigate } from "react-router";
+
+const CreatePage = () => {
+  const [data, setData] = useState({
+    title: "",
+    content: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handelSubmit = async (e) => {
+    e.preventDefault();
+    const { title, content } = data;
+    try {
+      setLoading(true);
+      if (!title.trim() || !content.trim()) {
+        toast.error("All fields are required");
+        return;
+      }
+      const res = await api.post("/notes", data);
+      console.log(res.data);
+      toast.success("Note created successfully");
+      navigate("/");
+    } catch (error) {
+      console.error("Error creating note:", error);
+      setLoading(false);
+      if (error.response && error.response.status === 429) {
+        toast.error("Slow down, you are creating too many requests.", {
+          duration: 5000,
+          position: "top-center",
+          icon: "🚨",
+        });
+      } else {
+        toast.error("Failed to create note");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-base-200">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-2xl mx-auto">
+          <Link to={"/"} className="btn btn-ghost mb-4">
+            <ArrowLeftIcon className="mr-2 size-5" />
+            Back to Notes
+          </Link>
+          <div className="card bg-base-100">
+            <div className="card-body">
+              <h1 className="card-title text-2xl mb-4">Create New Notes</h1>
+              <form onSubmit={handelSubmit}>
+                <div className="form-control mb-4">
+                  <label className="label">
+                    <span className="label-text">Title</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="enter note title"
+                    className="input input-bordered"
+                    value={data.title}
+                    onChange={(e) =>
+                      setData({ ...data, title: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="form-control mb-4">
+                  <label className="label">
+                    <span className="label-text">content</span>
+                  </label>
+                  <textarea
+                    placeholder="enter note content"
+                    type="text"
+                    className="textarea textarea-bordered h-32"
+                    value={data.content}
+                    onChange={(e) =>
+                      setData({ ...data, content: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="card-actions justify-end">
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={loading}
+                  >
+                    {loading ? "creating..." : "create note"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CreatePage;
