@@ -6,7 +6,6 @@ import toast from "react-hot-toast";
 
 const NoteDetailPage = () => {
   const navigate = useNavigate();
-  const navigation = useNavigate();
   const { id } = useParams();
   const [saving, setSaving] = useState(false);
   const [data, setData] = useState({
@@ -23,8 +22,13 @@ const NoteDetailPage = () => {
       } catch (error) {
         console.error("Error fetching notes:", error);
         if (error.response && error.response.status === 429) {
-          setIsRateLimit(true);
-        } else {
+          toast.error("Rate limit exceeded. Please try again later.");
+        } else if (error.response?.status === 404) {
+          // Either the note is gone or it belongs to another user — the API
+          // does not distinguish the two on purpose.
+          toast.error("Note not found");
+          navigate("/", { replace: true });
+        } else if (error.response?.status !== 401) {
           toast.error("Failed to fetch notes");
         }
       } finally {
@@ -32,17 +36,19 @@ const NoteDetailPage = () => {
       }
     };
     fetchNote();
-  }, [id]);
+  }, [id, navigate]);
 
   const handelDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this note?")) return;
     try {
-      const res = await api.delete(`/notes/${id}`);
+      await api.delete(`/notes/${id}`);
       toast.success("Note deleted successfully");
-      navigation("/");
+      navigate("/");
     } catch (error) {
-      console.error("Error fetching notes:", error);
-      toast.error("Failed to delete notes");
+      console.error("Error deleting note:", error);
+      if (error.response?.status !== 401) {
+        toast.error("Failed to delete note");
+      }
     }
   };
 
@@ -50,19 +56,18 @@ const NoteDetailPage = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await api.put(`/notes/${id}`, data);
-      console.log(res.data);
+      await api.put(`/notes/${id}`, data);
       toast.success("Note updated successfully");
+      navigate("/"); // only on success, so a failed save keeps the user's edits
     } catch (error) {
-      console.error("Error fetching notes:", error);
+      console.error("Error updating note:", error);
       if (error.response && error.response.status === 429) {
-        setIsRateLimit(true);
-      } else {
-        toast.error("Failed to fetch notes");
+        toast.error("Rate limit exceeded. Please try again later.");
+      } else if (error.response?.status !== 401) {
+        toast.error("Failed to update note");
       }
     } finally {
       setSaving(false);
-      navigate("/");
     }
   };
   if (loading) {

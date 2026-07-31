@@ -8,7 +8,9 @@ import NotesNotFound from "../components/NotesNotFound";
 const Home = () => {
   const [isRateLimit, setIsRateLimit] = useState(false);
   const [notes, setNotes] = useState([]);
-  const [loading, setLoading] = useState(false);
+  // Starts true so the "no notes yet" empty state does not flash before the
+  // first fetch resolves.
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     const fetchNotes = async () => {
       try {
@@ -20,7 +22,9 @@ const Home = () => {
         console.error("Error fetching notes:", error);
         if (error.response && error.response.status === 429) {
           setIsRateLimit(true);
-        } else {
+        } else if (error.response?.status !== 401) {
+          // 401 is handled globally by the axios interceptor, which signs the
+          // user out and lets ProtectedRoute redirect to /login.
           toast.error("Failed to fetch notes");
         }
       } finally {

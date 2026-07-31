@@ -16,8 +16,10 @@ const NoteCard = ({ note, setNotes }) => {
     } catch (error) {
       console.error("Error deleting note:", error);
       if (error.response && error.response.status === 429) {
-        setIsRateLimit(true);
         toast.error("Rate limit exceeded. Please try again later.");
+      } else if (error.response?.status === 401) {
+        // The axios interceptor already cleared the session; the redirect
+        // happens on its own, so stay quiet here.
       } else {
         toast.error("Failed to delete note");
       }
