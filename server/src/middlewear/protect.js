@@ -1,0 +1,33 @@
+import User from "../modals/user.modal.js";
+import { verifyToken, COOKIE_NAME, clearTokenCookie } from "../libs/token.js";
+
+// Guards every route it is mounted on: reads the httpOnly cookie, verifies the
+// JWT, and attaches the user document as req.user for downstream handlers.
+export default async function protect(req, res, next) {
+  try {
+    const token = req.cookies?.[COOKIE_NAME];
+    if (!token) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    let payload;
+    try {
+      payload = verifyToken(token);
+    } catch {
+      clearTokenCookie(res); // expired or tampered — drop the stale cookie
+      return res.status(401).json({ message: "Session expired" });
+    }
+
+    const user = await User.findById(payload.id);
+    if (!user) {
+      clearTokenCookie(res); // account deleted while the token was still valid
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error("Error in protect:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}

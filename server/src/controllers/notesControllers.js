@@ -1,18 +1,22 @@
 import Note from "../modals/note.modal.js";
-export async function getAllNotes(_, res) {
+
+// Every handler here is mounted behind the `protect` middleware, so req.user is
+// always set. Reads and writes filter by owner instead of looking a note up by id
+// alone — that filter is what keeps one user's notes invisible to another.
+export async function getAllNotes(req, res) {
   try {
-    const notes = await Note.find().sort({ createdAt: -1 }); // Fetch all notes sorted by creation date
-    if (!notes || notes.length === 0) {
-      return res.status(404).json({ message: "No notes found" });
-    }
-    // Return the notes in JSON format
+    const notes = await Note.find({ owner: req.user._id }).sort({
+      createdAt: -1,
+    });
+    // An empty list is a valid result, not a 404 — a new user simply has no notes.
     res.status(200).json(notes);
   } catch (error) {
     console.error("Error in getAllNotes:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
-export function createNote(req, res) {
+
+export async function createNote(req, res) {
   try {
     const { title, content } = req.body;
     if (!title || !content) {
@@ -20,8 +24,11 @@ export function createNote(req, res) {
         .status(400)
         .json({ message: "Title and content are required" });
     }
-    const newNote = new Note({ title, content });
-    newNote.save();
+    const newNote = await Note.create({
+      title,
+      content,
+      owner: req.user._id,
+    });
     res
       .status(201)
       .json({ message: "Note created successfully", note: newNote });
@@ -34,7 +41,9 @@ export function createNote(req, res) {
 export async function getNoteById(req, res) {
   try {
     const { id } = req.params;
-    const note = await Note.findById(id);
+    const note = await Note.findOne({ _id: id, owner: req.user._id });
+    // 404 rather than 403 for someone else's note, so the response does not
+    // confirm that the id exists.
     if (!note) {
       return res.status(404).json({ message: "Note not found" });
     }
@@ -54,17 +63,25 @@ export async function updateNoteById(req, res) {
         .status(400)
         .json({ message: "Title and content are required for update" });
     }
-    await Note.findByIdAndUpdate(id, { title, content }, { new: true });
-    res.status(200).json({ message: "Note updated successfully" });
+    const note = await Note.findOneAndUpdate(
+      { _id: id, owner: req.user._id },
+      { title, content },
+      { new: true }
+    );
+    if (!note) {
+      return res.status(404).json({ message: "Note not found" });
+    }
+    res.status(200).json({ message: "Note updated successfully", note });
   } catch (error) {
     console.error("Error in updateNoteById:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
+
 export async function deleteNoteById(req, res) {
   try {
     const { id } = req.params;
-    const note = await Note.findByIdAndDelete(id);
+    const note = await Note.findOneAndDelete({ _id: id, owner: req.user._id });
     if (!note) {
       return res.status(404).json({ message: "Note not found" });
     }
