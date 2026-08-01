@@ -19,19 +19,21 @@ import {
   WandSparklesIcon,
 } from "lucide-react";
 import api from "../libs/axios";
+import Button from "./Button";
 
 const ToolbarButton = ({ onClick, active, disabled, label, children }) => (
-  <button
-    type="button"
+  <Button
     onClick={onClick}
     disabled={disabled}
     aria-label={label}
     title={label}
     aria-pressed={Boolean(active)}
-    className={`btn btn-xs btn-square ${active ? "btn-primary" : "btn-ghost"}`}
+    variant={active ? "primary" : "ghost"}
+    size="xs"
+    square
   >
     {children}
-  </button>
+  </Button>
 );
 
 /**
@@ -214,32 +216,26 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
         </ToolbarButton>
 
         <div className="ml-auto flex items-center gap-1">
-          <button
-            type="button"
-            className="btn btn-xs btn-outline btn-primary"
+          <Button
+            variant="outline-primary"
+            size="xs"
+            icon={SparklesIcon}
+            iconClassName={aiAction === "grammar" ? "animate-pulse" : ""}
             onClick={() => runAI("grammar")}
             disabled={busy}
           >
-            <SparklesIcon
-              className={`size-3.5 ${
-                aiAction === "grammar" ? "animate-pulse" : ""
-              }`}
-            />
             {aiAction === "grammar" ? "Fixing..." : "Fix grammar"}
-          </button>
-          <button
-            type="button"
-            className="btn btn-xs btn-outline btn-primary"
+          </Button>
+          <Button
+            variant="outline-primary"
+            size="xs"
+            icon={WandSparklesIcon}
+            iconClassName={aiAction === "format" ? "animate-pulse" : ""}
             onClick={() => runAI("format")}
             disabled={busy}
           >
-            <WandSparklesIcon
-              className={`size-3.5 ${
-                aiAction === "format" ? "animate-pulse" : ""
-              }`}
-            />
             {aiAction === "format" ? "Formatting..." : "Format"}
-          </button>
+          </Button>
         </div>
       </div>
 

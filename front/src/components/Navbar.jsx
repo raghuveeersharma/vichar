@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router";
 import { PlusIcon, LogOutIcon, SettingsIcon } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/auth-context";
+import Button from "./Button";
 
 const Navbar = () => {
   const { user, checking, logout } = useAuth();
@@ -18,7 +19,7 @@ const Navbar = () => {
       <div className="mx-auto max-w-6xl p-4 ">
         <div className="flex items-center justify-between">
           <Link to={"/"} className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold text-primary font-mono tracking-wide">
+            <h1 className="text-2xl sm:text-3xl font-bold text-primary font-mono tracking-wide">
               Vichar
             </h1>
           </Link>
@@ -31,35 +32,41 @@ const Navbar = () => {
                   <span className="hidden sm:inline text-sm text-base-content/70">
                     {user.name}
                   </span>
-                  <Link to={"/create"} className="btn btn-primary">
-                    <PlusIcon className="size-4" />
-                    <span>new note</span>
-                  </Link>
-                  <Link
-                    to={"/settings"}
-                    className="btn btn-ghost"
+                  <Button
+                    to="/create"
+                    variant="primary"
+                    icon={PlusIcon}
+                    aria-label="New note"
+                  >
+                    new note
+                  </Button>
+                  <Button
+                    to="/settings"
+                    variant="ghost"
+                    icon={SettingsIcon}
+                    hideLabelOnMobile
                     aria-label="Settings"
                   >
-                    <SettingsIcon className="size-4" />
-                    <span className="hidden sm:inline">settings</span>
-                  </Link>
-                  <button
-                    className="btn btn-ghost"
+                    settings
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    icon={LogOutIcon}
+                    hideLabelOnMobile
                     onClick={handelLogout}
                     aria-label="Log out"
                   >
-                    <LogOutIcon className="size-4" />
-                    <span className="hidden sm:inline">logout</span>
-                  </button>
+                    logout
+                  </Button>
                 </>
               ) : (
                 <>
-                  <Link to={"/login"} className="btn btn-ghost">
+                  <Button to="/login" variant="ghost">
                     log in
-                  </Link>
-                  <Link to={"/signup"} className="btn btn-primary">
+                  </Button>
+                  <Button to="/signup" variant="primary">
                     sign up
-                  </Link>
+                  </Button>
                 </>
               )}
             </div>

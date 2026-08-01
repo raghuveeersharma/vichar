@@ -1,5 +1,5 @@
 import { NotebookIcon } from "lucide-react";
-import { Link } from "react-router";
+import Button from "./Button";
 
 const NotesNotFound = () => {
   return (
@@ -12,9 +12,9 @@ const NotesNotFound = () => {
         Ready to organize your thoughts? Create your first note to get started
         on your journey.
       </p>
-      <Link to="/create" className="btn btn-primary">
+      <Button to="/create" variant="primary" responsiveFullWidth>
         Create Your First Note
-      </Link>
+      </Button>
     </div>
   );
 };

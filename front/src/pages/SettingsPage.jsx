@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Link } from "react-router";
 import toast from "react-hot-toast";
 import { ArrowLeftIcon, KeyRoundIcon, MailIcon } from "lucide-react";
 import { useAuth } from "../context/auth-context";
 import PasswordInput from "../components/PasswordInput";
+import Button from "../components/Button";
 
 // Both forms send the current password: the API re-verifies it before changing
 // anything, so a stolen cookie alone cannot take over the account.
@@ -86,10 +86,9 @@ const SettingsPage = () => {
     <div className="min-h-screen">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
-          <Link to={"/"} className="btn btn-ghost mb-6">
-            <ArrowLeftIcon className="size-5" />
+          <Button to="/" variant="ghost" icon={ArrowLeftIcon} className="mb-6">
             Back to notes
-          </Link>
+          </Button>
 
           <h1 className="text-3xl font-bold mb-6">Settings</h1>
 
@@ -134,13 +133,14 @@ const SettingsPage = () => {
                   required
                 />
                 <div className="card-actions justify-end">
-                  <button
+                  <Button
                     type="submit"
-                    className="btn btn-primary"
-                    disabled={emailLoading}
+                    variant="primary"
+                    responsiveFullWidth
+                    loading={emailLoading}
                   >
                     {emailLoading ? "Saving..." : "Update email"}
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
@@ -199,13 +199,14 @@ const SettingsPage = () => {
                   required
                 />
                 <div className="card-actions justify-end">
-                  <button
+                  <Button
                     type="submit"
-                    className="btn btn-primary"
-                    disabled={passwordLoading}
+                    variant="primary"
+                    responsiveFullWidth
+                    loading={passwordLoading}
                   >
                     {passwordLoading ? "Saving..." : "Update password"}
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>

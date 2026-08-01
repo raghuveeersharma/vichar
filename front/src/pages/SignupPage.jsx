@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { UserPlusIcon } from "lucide-react";
 import { useAuth } from "../context/auth-context";
 import PasswordInput from "../components/PasswordInput";
+import Button from "../components/Button";
 
 const SignupPage = () => {
   const [data, setData] = useState({ name: "", email: "", password: "" });
@@ -88,20 +89,15 @@ const SignupPage = () => {
               minLength={6}
               required
             />
-            <button
+            <Button
               type="submit"
-              className="btn btn-primary w-full"
-              disabled={loading}
+              variant="primary"
+              fullWidth
+              icon={UserPlusIcon}
+              loading={loading}
             >
-              {loading ? (
-                "Creating account..."
-              ) : (
-                <>
-                  <UserPlusIcon className="size-4" />
-                  Sign up
-                </>
-              )}
-            </button>
+              {loading ? "Creating account..." : "Sign up"}
+            </Button>
           </form>
           <p className="text-sm text-base-content/70 mt-4 text-center">
             Already have an account?{" "}

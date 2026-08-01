@@ -4,6 +4,7 @@ import { formatDate } from "../libs/utils";
 import { htmlToText } from "../libs/html";
 import api from "../libs/axios";
 import toast from "react-hot-toast";
+import Button from "./Button";
 
 const NoteCard = ({ note, setNotes }) => {
   const handelDelete = async (e, id) => {
@@ -43,12 +44,13 @@ const NoteCard = ({ note, setNotes }) => {
           </span>
           <div className="flex items-center gap-1">
             <PenBoxIcon className="size-4 text-blue-500/70" />
-            <button
-              className="btn btn-ghost btn-sm text-error"
+            <Button
+              variant="ghost-error"
+              size="sm"
+              icon={Trash2Icon}
+              aria-label="Delete note"
               onClick={(e) => handelDelete(e, note._id)}
-            >
-              <Trash2Icon className="size-4" />
-            </button>
+            />
           </div>
         </div>
       </div>
