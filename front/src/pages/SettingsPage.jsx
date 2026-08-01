@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import toast from "react-hot-toast";
 import { ArrowLeftIcon, KeyRoundIcon, MailIcon } from "lucide-react";
 import { useAuth } from "../context/auth-context";
+import PasswordInput from "../components/PasswordInput";
 
 // Both forms send the current password: the API re-verifies it before changing
 // anything, so a stolen cookie alone cannot take over the account.
@@ -118,25 +119,20 @@ const SettingsPage = () => {
                     required
                   />
                 </div>
-                <div className="form-control mb-6">
-                  <label className="label">
-                    <span className="label-text">Current password</span>
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="••••••••"
-                    className="input input-bordered"
-                    value={emailForm.currentPassword}
-                    onChange={(e) =>
-                      setEmailForm({
-                        ...emailForm,
-                        currentPassword: e.target.value,
-                      })
-                    }
-                    autoComplete="current-password"
-                    required
-                  />
-                </div>
+                <PasswordInput
+                  label="Current password"
+                  className="mb-6"
+                  placeholder="••••••••"
+                  value={emailForm.currentPassword}
+                  onChange={(e) =>
+                    setEmailForm({
+                      ...emailForm,
+                      currentPassword: e.target.value,
+                    })
+                  }
+                  autoComplete="current-password"
+                  required
+                />
                 <div className="card-actions justify-end">
                   <button
                     type="submit"
@@ -160,63 +156,48 @@ const SettingsPage = () => {
                 Use at least 6 characters.
               </p>
               <form onSubmit={handelPasswordSubmit}>
-                <div className="form-control mb-4">
-                  <label className="label">
-                    <span className="label-text">Current password</span>
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="••••••••"
-                    className="input input-bordered"
-                    value={passwordForm.currentPassword}
-                    onChange={(e) =>
-                      setPasswordForm({
-                        ...passwordForm,
-                        currentPassword: e.target.value,
-                      })
-                    }
-                    autoComplete="current-password"
-                    required
-                  />
-                </div>
-                <div className="form-control mb-4">
-                  <label className="label">
-                    <span className="label-text">New password</span>
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="••••••••"
-                    className="input input-bordered"
-                    value={passwordForm.newPassword}
-                    onChange={(e) =>
-                      setPasswordForm({
-                        ...passwordForm,
-                        newPassword: e.target.value,
-                      })
-                    }
-                    autoComplete="new-password"
-                    required
-                  />
-                </div>
-                <div className="form-control mb-6">
-                  <label className="label">
-                    <span className="label-text">Confirm new password</span>
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="••••••••"
-                    className="input input-bordered"
-                    value={passwordForm.confirmPassword}
-                    onChange={(e) =>
-                      setPasswordForm({
-                        ...passwordForm,
-                        confirmPassword: e.target.value,
-                      })
-                    }
-                    autoComplete="new-password"
-                    required
-                  />
-                </div>
+                <PasswordInput
+                  label="Current password"
+                  className="mb-4"
+                  placeholder="••••••••"
+                  value={passwordForm.currentPassword}
+                  onChange={(e) =>
+                    setPasswordForm({
+                      ...passwordForm,
+                      currentPassword: e.target.value,
+                    })
+                  }
+                  autoComplete="current-password"
+                  required
+                />
+                <PasswordInput
+                  label="New password"
+                  className="mb-4"
+                  placeholder="••••••••"
+                  value={passwordForm.newPassword}
+                  onChange={(e) =>
+                    setPasswordForm({
+                      ...passwordForm,
+                      newPassword: e.target.value,
+                    })
+                  }
+                  autoComplete="new-password"
+                  required
+                />
+                <PasswordInput
+                  label="Confirm new password"
+                  className="mb-6"
+                  placeholder="••••••••"
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) =>
+                    setPasswordForm({
+                      ...passwordForm,
+                      confirmPassword: e.target.value,
+                    })
+                  }
+                  autoComplete="new-password"
+                  required
+                />
                 <div className="card-actions justify-end">
                   <button
                     type="submit"
