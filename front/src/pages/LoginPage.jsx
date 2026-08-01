@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { LogInIcon } from "lucide-react";
 import { useAuth } from "../context/auth-context";
 import PasswordInput from "../components/PasswordInput";
+import Button from "../components/Button";
 
 const LoginPage = () => {
   const [data, setData] = useState({ email: "", password: "" });
@@ -70,20 +71,15 @@ const LoginPage = () => {
               autoComplete="current-password"
               required
             />
-            <button
+            <Button
               type="submit"
-              className="btn btn-primary w-full"
-              disabled={loading}
+              variant="primary"
+              fullWidth
+              icon={LogInIcon}
+              loading={loading}
             >
-              {loading ? (
-                "Logging in..."
-              ) : (
-                <>
-                  <LogInIcon className="size-4" />
-                  Log in
-                </>
-              )}
-            </button>
+              {loading ? "Logging in..." : "Log in"}
+            </Button>
           </form>
           <p className="text-sm text-base-content/70 mt-4 text-center">
             Don't have an account?{" "}

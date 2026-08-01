@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import api from "../libs/axios";
 import { ArrowLeftIcon, LoaderIcon, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import RichTextEditor from "../components/RichTextEditor";
 import { isEmptyHtml, toEditorHtml } from "../libs/html";
+import Button from "../components/Button";
 
 const NoteDetailPage = () => {
   const navigate = useNavigate();
@@ -90,18 +91,17 @@ const NoteDetailPage = () => {
       <div className="container mx-auto px-4 py-8 ">
         <div className="max-w-2xl mx-auto">
           {" "}
-          <div className="flex items-center justify-between">
-            <Link to={"/"} className="btn btn-ghost">
-              <ArrowLeftIcon className="size-5" />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button to="/" variant="ghost" icon={ArrowLeftIcon}>
               Back to Notes
-            </Link>
-            <button
-              className="btn btn-error btn-outline"
+            </Button>
+            <Button
+              variant="outline-error"
+              icon={Trash2}
               onClick={handelDelete}
             >
-              <Trash2 className="size-5" />
               Delete Note
-            </button>
+            </Button>
           </div>
           <div className="card bg-base-100 mt-4">
             <div className="card-body">
@@ -133,13 +133,13 @@ const NoteDetailPage = () => {
                   />
                 </div>
                 <div className="card-actions justify-end">
-                  <button
+                  <Button
                     type="submit"
-                    className="btn btn-primary"
-                    disabled={saving}
+                    variant="primary"
+                    loading={saving}
                   >
-                    {loading ? "Saving..." : "Save Changes"}
-                  </button>
+                    {saving ? "Saving..." : "Save Changes"}
+                  </Button>
                 </div>
               </form>
             </div>
