@@ -1,11 +1,13 @@
 import express from "express";
 import router from "./routes/notesRoutes.js";
 import authRouter from "./routes/authRoutes.js";
+import aiRouter from "./routes/aiRoutes.js";
 import db from "./config/db.js";
 import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import rateLimiter from "./middlewear/rateLimiter.js";
+import aiRateLimiter from "./middlewear/aiRateLimiter.js";
 import protect from "./middlewear/protect.js";
 const app = express();
 
@@ -35,6 +37,7 @@ app.use(cookieParser()); // Populate req.cookies so `protect` can read the JWT
 
 app.use("/api/auth", authRouter); // Public: signup / login / logout (+ guarded /me)
 app.use("/api/notes", protect, router); // Every note route requires a valid session
+app.use("/api/ai", protect, aiRateLimiter, aiRouter); // Guarded + its own tighter budget
 
 const PORT = process.env.PORT || 5000;
 db().then(() => {
