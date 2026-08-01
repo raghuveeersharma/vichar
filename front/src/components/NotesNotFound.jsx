@@ -12,7 +12,7 @@ const NotesNotFound = () => {
         Ready to organize your thoughts? Create your first note to get started
         on your journey.
       </p>
-      <Button to="/create" variant="primary" responsiveFullWidth>
+      <Button to="/create" variant="primary">
         Create Your First Note
       </Button>
     </div>

@@ -136,7 +136,6 @@ const SettingsPage = () => {
                   <Button
                     type="submit"
                     variant="primary"
-                    responsiveFullWidth
                     loading={emailLoading}
                   >
                     {emailLoading ? "Saving..." : "Update email"}
@@ -202,7 +201,6 @@ const SettingsPage = () => {
                   <Button
                     type="submit"
                     variant="primary"
-                    responsiveFullWidth
                     loading={passwordLoading}
                   >
                     {passwordLoading ? "Saving..." : "Update password"}

@@ -9,10 +9,18 @@ const VARIANT_CLASSES = {
   "outline-error": "btn-outline btn-error",
 };
 
+// The default size steps down to `btn-sm` on mobile so buttons are not
+// oversized on a narrow screen; explicit `xs`/`sm` are already compact and
+// stay put. The literal strings matter — Tailwind only emits the `sm:`
+// variants it can find verbatim in the source.
+//
+// Each size also sets its own gap: daisyUI hard-codes `gap: .5rem` on `.btn`
+// no matter the size, which reads as a wide gutter next to a small icon and
+// label. These utilities land in Tailwind's utilities layer, so they win.
 const SIZE_CLASSES = {
-  xs: "btn-xs",
-  sm: "btn-sm",
-  md: "",
+  xs: "btn-xs gap-1",
+  sm: "btn-sm gap-1.5",
+  md: "btn-sm gap-1.5 sm:btn-md sm:gap-2",
 };
 
 // Shared button styled with daisyUI's `btn` classes. Renders a react-router
@@ -25,12 +33,10 @@ const Button = ({
   square = false,
   active = false,
   fullWidth = false,
-  responsiveFullWidth = false,
   loading = false,
   disabled = false,
   icon: Icon,
   iconClassName = "",
-  hideLabelOnMobile = false,
   className = "",
   children,
   type = "button",
@@ -41,7 +47,7 @@ const Button = ({
     active ? "btn-primary" : VARIANT_CLASSES[variant] ?? "",
     SIZE_CLASSES[size] ?? "",
     square ? "btn-square" : "",
-    fullWidth ? "w-full" : responsiveFullWidth ? "w-full sm:w-auto" : "",
+    fullWidth ? "w-full" : "",
     className,
   ]
     .filter(Boolean)
@@ -54,11 +60,7 @@ const Button = ({
       ) : (
         Icon && <Icon className={`size-4 ${iconClassName}`} />
       )}
-      {children && (
-        <span className={hideLabelOnMobile ? "hidden sm:inline" : undefined}>
-          {children}
-        </span>
-      )}
+      {children && <span>{children}</span>}
     </>
   );
 

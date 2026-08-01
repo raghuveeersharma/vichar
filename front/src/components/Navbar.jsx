@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router";
-import { PlusIcon, LogOutIcon, SettingsIcon } from "lucide-react";
+import { PlusIcon, LogOutIcon, SettingsIcon, MenuIcon } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/auth-context";
 import Button from "./Button";
@@ -8,7 +8,12 @@ const Navbar = () => {
   const { user, checking, logout } = useAuth();
   const navigate = useNavigate();
 
+  // daisyUI's dropdown opens on focus, so it stays open after a menu item is
+  // clicked until something drops focus explicitly.
+  const closeMenu = () => document.activeElement?.blur();
+
   const handelLogout = async () => {
+    closeMenu();
     await logout();
     toast.success("Logged out");
     navigate("/login", { replace: true });
@@ -37,34 +42,68 @@ const Navbar = () => {
                     variant="primary"
                     icon={PlusIcon}
                     aria-label="New note"
+                    size="xs"
                   >
                     new note
                   </Button>
+                  {/* sm and up: settings and logout sit inline. Below that
+                      they collapse into the hamburger menu next to it. */}
                   <Button
                     to="/settings"
                     variant="ghost"
                     icon={SettingsIcon}
-                    hideLabelOnMobile
-                    aria-label="Settings"
+                    size="sm"
+                    className="hidden sm:inline-flex"
                   >
                     settings
                   </Button>
                   <Button
                     variant="ghost"
                     icon={LogOutIcon}
-                    hideLabelOnMobile
                     onClick={handelLogout}
-                    aria-label="Log out"
+                    size="sm"
+                    className="hidden sm:inline-flex"
                   >
                     logout
                   </Button>
+
+                  <div className="dropdown dropdown-end sm:hidden">
+                    <div
+                      tabIndex={0}
+                      role="button"
+                      className="btn btn-ghost btn-sm btn-square"
+                      aria-label="Open menu"
+                    >
+                      <MenuIcon className="size-4" />
+                    </div>
+                    <ul
+                      tabIndex={0}
+                      className="dropdown-content menu z-10 mt-2 w-44 gap-1 rounded-box bg-base-200 p-2 shadow-lg"
+                    >
+                      <li className="menu-title px-3 py-1 text-xs">
+                        {user.name}
+                      </li>
+                      <li>
+                        <Link to="/settings" onClick={closeMenu}>
+                          <SettingsIcon className="size-4" />
+                          settings
+                        </Link>
+                      </li>
+                      <li>
+                        <button onClick={handelLogout} className="text-error">
+                          <LogOutIcon className="size-4" />
+                          logout
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
                 </>
               ) : (
                 <>
-                  <Button to="/login" variant="ghost">
+                  <Button to="/login" variant="ghost" size="sm">
                     log in
                   </Button>
-                  <Button to="/signup" variant="primary">
+                  <Button to="/signup" variant="primary" size="sm">
                     sign up
                   </Button>
                 </>

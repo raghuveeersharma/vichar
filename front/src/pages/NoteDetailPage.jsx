@@ -136,7 +136,6 @@ const NoteDetailPage = () => {
                   <Button
                     type="submit"
                     variant="primary"
-                    responsiveFullWidth
                     loading={saving}
                   >
                     {saving ? "Saving..." : "Save Changes"}

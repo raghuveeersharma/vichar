@@ -85,7 +85,6 @@ const CreatePage = () => {
                   <Button
                     type="submit"
                     variant="primary"
-                    responsiveFullWidth
                     loading={loading}
                   >
                     {loading ? "creating..." : "create note"}
