@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import toast from "react-hot-toast";
 import { LogInIcon } from "lucide-react";
 import { useAuth } from "../context/auth-context";
+import PasswordInput from "../components/PasswordInput";
 
 const LoginPage = () => {
   const [data, setData] = useState({ email: "", password: "" });
@@ -60,20 +61,15 @@ const LoginPage = () => {
                 required
               />
             </div>
-            <div className="form-control mb-6">
-              <label className="label">
-                <span className="label-text">Password</span>
-              </label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                className="input input-bordered"
-                value={data.password}
-                onChange={(e) => setData({ ...data, password: e.target.value })}
-                autoComplete="current-password"
-                required
-              />
-            </div>
+            <PasswordInput
+              label="Password"
+              className="mb-6"
+              placeholder="••••••••"
+              value={data.password}
+              onChange={(e) => setData({ ...data, password: e.target.value })}
+              autoComplete="current-password"
+              required
+            />
             <button
               type="submit"
               className="btn btn-primary w-full"

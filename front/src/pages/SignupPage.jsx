@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router";
 import toast from "react-hot-toast";
 import { UserPlusIcon } from "lucide-react";
 import { useAuth } from "../context/auth-context";
+import PasswordInput from "../components/PasswordInput";
 
 const SignupPage = () => {
   const [data, setData] = useState({ name: "", email: "", password: "" });
@@ -77,21 +78,16 @@ const SignupPage = () => {
                 required
               />
             </div>
-            <div className="form-control mb-6">
-              <label className="label">
-                <span className="label-text">Password</span>
-              </label>
-              <input
-                type="password"
-                placeholder="at least 6 characters"
-                className="input input-bordered"
-                value={data.password}
-                onChange={(e) => setData({ ...data, password: e.target.value })}
-                autoComplete="new-password"
-                minLength={6}
-                required
-              />
-            </div>
+            <PasswordInput
+              label="Password"
+              className="mb-6"
+              placeholder="at least 6 characters"
+              value={data.password}
+              onChange={(e) => setData({ ...data, password: e.target.value })}
+              autoComplete="new-password"
+              minLength={6}
+              required
+            />
             <button
               type="submit"
               className="btn btn-primary w-full"
