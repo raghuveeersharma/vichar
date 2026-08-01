@@ -60,8 +60,28 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateEmail = async (payload) => {
+    const res = await api.patch("/auth/email", payload);
+    setUser(res.data.user);
+  };
+
+  // The server re-issues the cookie, so there is no session state to update here
+  const updatePassword = async (payload) => {
+    await api.patch("/auth/password", payload);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, checking, signup, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        checking,
+        signup,
+        login,
+        logout,
+        updateEmail,
+        updatePassword,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -4,6 +4,7 @@ import CreatePage from "./pages/CreatePage";
 import NoteDetailPage from "./pages/NoteDetailPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
+import SettingsPage from "./pages/SettingsPage";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import GuestRoute from "./components/GuestRoute";
@@ -24,6 +25,7 @@ const App = () => {
           <Route path="/" element={<Home />} />
           <Route path="/create" element={<CreatePage />} />
           <Route path="/note/:id" element={<NoteDetailPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Routes>
     </div>

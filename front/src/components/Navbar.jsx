@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router";
-import { PlusIcon, LogOutIcon } from "lucide-react";
+import { PlusIcon, LogOutIcon, SettingsIcon } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/auth-context";
 
@@ -34,6 +34,14 @@ const Navbar = () => {
                   <Link to={"/create"} className="btn btn-primary">
                     <PlusIcon className="size-4" />
                     <span>new note</span>
+                  </Link>
+                  <Link
+                    to={"/settings"}
+                    className="btn btn-ghost"
+                    aria-label="Settings"
+                  >
+                    <SettingsIcon className="size-4" />
+                    <span className="hidden sm:inline">settings</span>
                   </Link>
                   <button
                     className="btn btn-ghost"

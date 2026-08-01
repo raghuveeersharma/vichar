@@ -1,0 +1,238 @@
+import { useState } from "react";
+import { Link } from "react-router";
+import toast from "react-hot-toast";
+import { ArrowLeftIcon, KeyRoundIcon, MailIcon } from "lucide-react";
+import { useAuth } from "../context/auth-context";
+
+// Both forms send the current password: the API re-verifies it before changing
+// anything, so a stolen cookie alone cannot take over the account.
+const SettingsPage = () => {
+  const { user, updateEmail, updatePassword } = useAuth();
+
+  const [emailForm, setEmailForm] = useState({
+    email: user?.email || "",
+    currentPassword: "",
+  });
+  const [emailLoading, setEmailLoading] = useState(false);
+
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const reportError = (error, fallback) => {
+    console.error(fallback + ":", error);
+    if (error.response?.status === 429) {
+      toast.error("Too many attempts. Please try again later.");
+    } else {
+      toast.error(error.response?.data?.message || fallback);
+    }
+  };
+
+  const handelEmailSubmit = async (e) => {
+    e.preventDefault();
+    const { email, currentPassword } = emailForm;
+    if (!email.trim() || !currentPassword) {
+      toast.error("All fields are required");
+      return;
+    }
+    try {
+      setEmailLoading(true);
+      await updateEmail({ email: email.trim(), currentPassword });
+      toast.success("Email updated");
+      setEmailForm((prev) => ({ ...prev, currentPassword: "" }));
+    } catch (error) {
+      reportError(error, "Failed to update email");
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const handelPasswordSubmit = async (e) => {
+    e.preventDefault();
+    const { currentPassword, newPassword, confirmPassword } = passwordForm;
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error("All fields are required");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    try {
+      setPasswordLoading(true);
+      await updatePassword({ currentPassword, newPassword });
+      toast.success("Password updated");
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (error) {
+      reportError(error, "Failed to update password");
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-2xl mx-auto">
+          <Link to={"/"} className="btn btn-ghost mb-6">
+            <ArrowLeftIcon className="size-5" />
+            Back to notes
+          </Link>
+
+          <h1 className="text-3xl font-bold mb-6">Settings</h1>
+
+          <div className="card bg-base-100 mb-6">
+            <div className="card-body">
+              <h2 className="card-title text-xl">
+                <MailIcon className="size-5 text-primary" />
+                Email address
+              </h2>
+              <p className="text-base-content/70 mb-2">
+                You log in with this address.
+              </p>
+              <form onSubmit={handelEmailSubmit}>
+                <div className="form-control mb-4">
+                  <label className="label">
+                    <span className="label-text">New email</span>
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="you@example.com"
+                    className="input input-bordered"
+                    value={emailForm.email}
+                    onChange={(e) =>
+                      setEmailForm({ ...emailForm, email: e.target.value })
+                    }
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+                <div className="form-control mb-6">
+                  <label className="label">
+                    <span className="label-text">Current password</span>
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    className="input input-bordered"
+                    value={emailForm.currentPassword}
+                    onChange={(e) =>
+                      setEmailForm({
+                        ...emailForm,
+                        currentPassword: e.target.value,
+                      })
+                    }
+                    autoComplete="current-password"
+                    required
+                  />
+                </div>
+                <div className="card-actions justify-end">
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={emailLoading}
+                  >
+                    {emailLoading ? "Saving..." : "Update email"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div className="card bg-base-100">
+            <div className="card-body">
+              <h2 className="card-title text-xl">
+                <KeyRoundIcon className="size-5 text-primary" />
+                Password
+              </h2>
+              <p className="text-base-content/70 mb-2">
+                Use at least 6 characters.
+              </p>
+              <form onSubmit={handelPasswordSubmit}>
+                <div className="form-control mb-4">
+                  <label className="label">
+                    <span className="label-text">Current password</span>
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    className="input input-bordered"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) =>
+                      setPasswordForm({
+                        ...passwordForm,
+                        currentPassword: e.target.value,
+                      })
+                    }
+                    autoComplete="current-password"
+                    required
+                  />
+                </div>
+                <div className="form-control mb-4">
+                  <label className="label">
+                    <span className="label-text">New password</span>
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    className="input input-bordered"
+                    value={passwordForm.newPassword}
+                    onChange={(e) =>
+                      setPasswordForm({
+                        ...passwordForm,
+                        newPassword: e.target.value,
+                      })
+                    }
+                    autoComplete="new-password"
+                    required
+                  />
+                </div>
+                <div className="form-control mb-6">
+                  <label className="label">
+                    <span className="label-text">Confirm new password</span>
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    className="input input-bordered"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) =>
+                      setPasswordForm({
+                        ...passwordForm,
+                        confirmPassword: e.target.value,
+                      })
+                    }
+                    autoComplete="new-password"
+                    required
+                  />
+                </div>
+                <div className="card-actions justify-end">
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={passwordLoading}
+                  >
+                    {passwordLoading ? "Saving..." : "Update password"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SettingsPage;
