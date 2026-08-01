@@ -69,3 +69,76 @@ export function logout(_, res) {
 export function me(req, res) {
   res.status(200).json({ user: req.user.toPublicJSON() });
 }
+
+export async function updateEmail(req, res) {
+  try {
+    const { email, currentPassword } = req.body;
+    if (!email || !currentPassword) {
+      return res
+        .status(400)
+        .json({ message: "Email and current password are required" });
+    }
+
+    const nextEmail = email.toLowerCase().trim();
+    if (nextEmail === req.user.email) {
+      return res
+        .status(400)
+        .json({ message: "That is already your email address" });
+    }
+
+    // protect() loads the user without the password (select:false)
+    const user = await User.findById(req.user._id).select("+password");
+    if (!(await user.comparePassword(currentPassword))) {
+      return res.status(401).json({ message: "Current password is incorrect" });
+    }
+
+    const existing = await User.findOne({ email: nextEmail });
+    if (existing) {
+      return res.status(409).json({ message: "Email already registered" });
+    }
+
+    user.email = nextEmail;
+    await user.save();
+    res.status(200).json({ user: user.toPublicJSON() });
+  } catch (error) {
+    console.error("Error in updateEmail:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+export async function updatePassword(req, res) {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res
+        .status(400)
+        .json({ message: "Current and new password are required" });
+    }
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 6 characters" });
+    }
+    if (newPassword === currentPassword) {
+      return res
+        .status(400)
+        .json({ message: "New password must differ from the current one" });
+    }
+
+    const user = await User.findById(req.user._id).select("+password");
+    if (!(await user.comparePassword(currentPassword))) {
+      return res.status(401).json({ message: "Current password is incorrect" });
+    }
+
+    // The pre("save") hook hashes it — never hash at the call site
+    user.password = newPassword;
+    await user.save();
+
+    // Re-issue the cookie so the session survives the change
+    setTokenCookie(res, signToken(user._id));
+    res.status(200).json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Error in updatePassword:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}

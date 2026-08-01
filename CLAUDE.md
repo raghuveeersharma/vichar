@@ -48,10 +48,10 @@ server/
     ├── config/db.js                  # mongoose.connect(MONGODB_URI); process.exit(1) on failure
     ├── libs/token.js                 # sign/verify JWT + set/clear the httpOnly cookie (single source of cookie flags)
     ├── routes/
-    │   ├── authRoutes.js             # POST /signup · /login · /logout · GET /me (guarded)
+    │   ├── authRoutes.js             # POST /signup · /login · /logout · GET /me · PATCH /email · /password (last three guarded)
     │   └── notesRoutes.js            # GET / · POST / · PUT /:id · GET /:id · DELETE /:id
     ├── controllers/
-    │   ├── authControllers.js        # signup, login, logout, me
+    │   ├── authControllers.js        # signup, login, logout, me, updateEmail, updatePassword
     │   └── notesControllers.js       # getAllNotes, createNote, getNoteById, updateNoteById, deleteNoteById
     ├── modals/                       # "models", misspelled
     │   ├── user.modal.js             # name/email/password; pre-save bcrypt hash; comparePassword; toPublicJSON
@@ -85,7 +85,8 @@ front/
     │   ├── CreatePage.jsx            # POST /notes → navigate("/")
     │   ├── NoteDetailPage.jsx        # GET/PUT/DELETE /notes/:id
     │   ├── LoginPage.jsx             # returns the user to the route ProtectedRoute bounced them from
-    │   └── SignupPage.jsx            # name/email/password
+    │   ├── SignupPage.jsx            # name/email/password
+    │   └── SettingsPage.jsx          # PATCH /auth/email · /auth/password (both re-verify the current password)
     ├── components/
     │   ├── Navbar.jsx                # brand; user name + new note + logout, or log in / sign up
     │   ├── ProtectedRoute.jsx        # <Outlet> guard → /login when signed out
@@ -98,7 +99,7 @@ front/
         └── utils.js                  # formatDate
 ```
 
-Routes are declared in `App.jsx` as two guarded groups: `/login` and `/signup` behind `GuestRoute`, and `/`, `/create`, `/note/:id` behind `ProtectedRoute`. There is no data-fetching library — each page owns `useState` for `data`/`loading` and calls the shared `api` instance directly inside `useEffect` or a submit handler. `AuthContext` is the only global state. `NoteCard` receives `setNotes` from `Home` so it can splice a deleted note out of the parent list; that prop-drilled setter is the only cross-component state channel.
+Routes are declared in `App.jsx` as two guarded groups: `/login` and `/signup` behind `GuestRoute`, and `/`, `/create`, `/note/:id`, `/settings` behind `ProtectedRoute`. There is no data-fetching library — each page owns `useState` for `data`/`loading` and calls the shared `api` instance directly inside `useEffect` or a submit handler. `AuthContext` is the only global state. `NoteCard` receives `setNotes` from `Home` so it can splice a deleted note out of the parent list; that prop-drilled setter is the only cross-component state channel.
 
 ## Architecture notes
 
