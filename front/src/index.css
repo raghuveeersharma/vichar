@@ -1,3 +1,12 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+  /* TipTap's Placeholder extension puts the text on a data attribute of the
+     first empty node; there is no <textarea placeholder> to lean on. */
+  .tiptap p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    @apply pointer-events-none float-left h-0 text-base-content/40;
+  }
+}

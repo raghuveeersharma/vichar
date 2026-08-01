@@ -3,6 +3,8 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import api from "../libs/axios";
 import { Link, useNavigate } from "react-router";
+import RichTextEditor from "../components/RichTextEditor";
+import { isEmptyHtml } from "../libs/html";
 
 const CreatePage = () => {
   const [data, setData] = useState({
@@ -17,7 +19,8 @@ const CreatePage = () => {
     const { title, content } = data;
     try {
       setLoading(true);
-      if (!title.trim() || !content.trim()) {
+      // The editor emits "<p></p>" for an empty document, so check the text.
+      if (!title.trim() || isEmptyHtml(content)) {
         toast.error("All fields are required");
         return;
       }
@@ -72,14 +75,10 @@ const CreatePage = () => {
                   <label className="label">
                     <span className="label-text">content</span>
                   </label>
-                  <textarea
-                    placeholder="enter note content"
-                    type="text"
-                    className="textarea textarea-bordered h-32"
+                  <RichTextEditor
                     value={data.content}
-                    onChange={(e) =>
-                      setData({ ...data, content: e.target.value })
-                    }
+                    onChange={(content) => setData({ ...data, content })}
+                    placeholder="enter note content"
                   />
                 </div>
                 <div className="card-actions justify-end">

@@ -1,6 +1,7 @@
 import { PenBoxIcon, Trash2Icon } from "lucide-react";
 import { Link } from "react-router";
 import { formatDate } from "../libs/utils";
+import { htmlToText } from "../libs/html";
 import api from "../libs/axios";
 import toast from "react-hot-toast";
 
@@ -32,7 +33,10 @@ const NoteCard = ({ note, setNotes }) => {
     >
       <div className="card-body">
         <h3 className="card-title text-base-content">{note.title}</h3>
-        <p className="text-base-content/70 line-clamp-3">{note.content}</p>
+        {/* Notes are stored as editor HTML; the preview shows text, not markup. */}
+        <p className="text-base-content/70 line-clamp-3">
+          {htmlToText(note.content)}
+        </p>
         <div className="card-actions items-center justify-between mt-4">
           <span className="text-sm text-base-content/70">
             {formatDate(new Date(note.createdAt))}

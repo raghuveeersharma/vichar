@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from "react-router";
 import api from "../libs/axios";
 import { ArrowLeftIcon, LoaderIcon, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
+import RichTextEditor from "../components/RichTextEditor";
+import { isEmptyHtml, toEditorHtml } from "../libs/html";
 
 const NoteDetailPage = () => {
   const navigate = useNavigate();
@@ -17,8 +19,9 @@ const NoteDetailPage = () => {
     const fetchNote = async () => {
       try {
         const res = await api.get(`/notes/${id}`);
-        setData(res.data);
-        console.log(res.data);
+        // Notes saved before the rich-text editor are plain text — promote
+        // them to HTML so their line breaks survive the round trip.
+        setData({ ...res.data, content: toEditorHtml(res.data.content) });
       } catch (error) {
         console.error("Error fetching notes:", error);
         if (error.response && error.response.status === 429) {
@@ -54,6 +57,10 @@ const NoteDetailPage = () => {
 
   const handelSubmit = async (e, id) => {
     e.preventDefault();
+    if (!data.title.trim() || isEmptyHtml(data.content)) {
+      toast.error("All fields are required");
+      return;
+    }
     setSaving(true);
     try {
       await api.put(`/notes/${id}`, data);
@@ -119,15 +126,10 @@ const NoteDetailPage = () => {
                   <label className="label">
                     <span className="label-text">content</span>
                   </label>
-                  <textarea
-                    placeholder="enter note content"
-                    type="text"
-                    className="textarea textarea-bordered h-32"
+                  <RichTextEditor
                     value={data.content}
-                    onChange={(e) =>
-                      setData({ ...data, content: e.target.value })
-                    }
-                    required
+                    onChange={(content) => setData({ ...data, content })}
+                    placeholder="enter note content"
                   />
                 </div>
                 <div className="card-actions justify-end">
