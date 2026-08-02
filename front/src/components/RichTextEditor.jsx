@@ -21,6 +21,8 @@ import {
 import api from "../libs/axios";
 import Button from "./Button";
 
+// Active state is a translucent primary wash rather than a solid fill: a row
+// of solid buttons on a glass bar reads as heavier than the text it formats.
 const ToolbarButton = ({ onClick, active, disabled, label, children }) => (
   <Button
     onClick={onClick}
@@ -28,9 +30,10 @@ const ToolbarButton = ({ onClick, active, disabled, label, children }) => (
     aria-label={label}
     title={label}
     aria-pressed={Boolean(active)}
-    variant={active ? "primary" : "ghost"}
+    variant="ghost"
     size="xs"
     square
+    className={active ? "bg-primary/20 text-primary hover:bg-primary/30" : ""}
   >
     {children}
   </Button>
@@ -125,8 +128,13 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
   const busy = aiAction !== null;
 
   return (
-    <div className="rounded-lg border border-base-content/20 bg-base-100 focus-within:border-primary">
-      <div className="flex flex-wrap items-center gap-1 border-b border-base-content/10 p-2">
+    <div className="glass-inset">
+      {/* Sticky only from `md:` up. Wrapped at 375px this bar is two rows of
+          44px targets plus the AI actions — roughly a fifth of a phone
+          viewport — and parking that permanently under the navbar costs more
+          than the convenience is worth. Wrapping beats horizontal scroll
+          either way: a scrolled sticky bar hides buttons with no affordance. */}
+      <div className="glass-panel m-2 flex flex-wrap items-center gap-1 p-2 md:sticky md:top-[calc(var(--navbar-h)+0.5rem)] md:z-30">
         <ToolbarButton
           label="Bold"
           active={state.bold}
@@ -156,7 +164,9 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
           <CodeIcon className="size-3.5" />
         </ToolbarButton>
 
-        <div className="mx-1 h-4 w-px bg-base-content/20" />
+        {/* Group separators only make sense while the bar is one row; once it
+            wraps on a phone they orphan onto their own line. */}
+        <div className="mx-1 hidden h-4 w-px bg-base-content/20 md:block" />
 
         <ToolbarButton
           label="Heading 2"
@@ -198,7 +208,9 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
           <QuoteIcon className="size-3.5" />
         </ToolbarButton>
 
-        <div className="mx-1 h-4 w-px bg-base-content/20" />
+        {/* Group separators only make sense while the bar is one row; once it
+            wraps on a phone they orphan onto their own line. */}
+        <div className="mx-1 hidden h-4 w-px bg-base-content/20 md:block" />
 
         <ToolbarButton
           label="Undo"

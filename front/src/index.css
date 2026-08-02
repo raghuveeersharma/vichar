@@ -58,11 +58,23 @@
   --navbar-h: 5rem;
 }
 
+/* daisyUI reads `var(--padding-card, 2rem)` and never defines it. 2rem across
+   both edges is 64px of a 375px viewport — enough to push the wrapped editor
+   toolbar from six buttons a row down to five. Tighten it on phones; every
+   card body picks it up. */
+@media (max-width: 639px) {
+  :root {
+    --padding-card: 1.25rem;
+  }
+}
+
 /* TipTap's Placeholder extension puts the text on a data attribute of the
    first empty node; there is no <textarea placeholder> to lean on. */
 .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
-  @apply pointer-events-none float-left h-0 text-base-content/40;
+  /* 40% measured 2.78:1 against the editor's glass inset — under AA. 60%
+     matches the input placeholders and clears it. */
+  @apply pointer-events-none float-left h-0 text-base-content/60;
 }
 
 .glass-panel {
@@ -83,6 +95,26 @@
   box-shadow: var(--glass-shadow);
 }
 
+/* A recessed surface *inside* a glass panel — same tokens, deliberately no
+   backdrop-filter. Blurring what an already-blurred parent composited buys
+   nothing visually and costs another compositing pass, which is how a page
+   ends up with three stacked blur contexts during scroll. */
+.glass-inset {
+  background: color-mix(in oklab, oklch(var(--b2)) 45%, transparent);
+  border: 1px solid var(--glass-border);
+  border-radius: calc(var(--glass-radius) - 0.25rem);
+}
+
+.glass-inset:focus-within {
+  border-color: oklch(var(--p) / 0.5);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-inset {
+    background: oklch(var(--b2));
+  }
+}
+
 /* Hover affordance for panels that are themselves links or buttons. Lifts and
    thickens the glass rather than swapping in a flat hover color, so the panel
    reads as rising toward the viewer. Pairs with .glass-panel. */
@@ -100,13 +132,18 @@
 
 /* Inputs get their own translucent variant so they don't read as opaque
    slabs dropped inside a glass card. Additive — pair with daisyUI's `input`
-   so error/disabled state classes keep working. */
+   so error/disabled state classes keep working.
+
+   No backdrop-filter here, deliberately. A field always sits inside a glass
+   panel, so its backdrop has already been blurred once; measured against the
+   spec's `blur(8px)` the difference peaked at 6/255 per channel — invisible —
+   while adding one compositing layer per field, which is four on the settings
+   page alone. The translucent background is what reads as glass; the second
+   blur only costs. Same reasoning as .glass-inset above. */
 .input-glass,
 .textarea-glass {
   background: color-mix(in oklab, oklch(var(--b2)) 40%, transparent);
   border: 1px solid var(--glass-border);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 }
 
 /* daisyUI's placeholder sits at 20% opacity, which is comfortably under AA
@@ -214,11 +251,6 @@
   .glass-toast {
     background: oklch(var(--b1) / 0.96) !important;
   }
-
-  .input-glass,
-  .textarea-glass {
-    background: oklch(var(--b2) / 0.92);
-  }
 }
 
 @media (prefers-reduced-transparency: reduce) {
@@ -238,8 +270,6 @@
   .input-glass,
   .textarea-glass {
     background: oklch(var(--b2));
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
   }
 
   .app-bg-blob {
