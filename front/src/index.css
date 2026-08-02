@@ -83,6 +83,21 @@
   box-shadow: var(--glass-shadow);
 }
 
+/* Hover affordance for panels that are themselves links or buttons. Lifts and
+   thickens the glass rather than swapping in a flat hover color, so the panel
+   reads as rising toward the viewer. Pairs with .glass-panel. */
+.glass-interactive {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.glass-interactive:hover {
+  background: var(--glass-bg-strong);
+  border-color: oklch(var(--p) / 0.35);
+  transform: translateY(-0.25rem);
+  box-shadow: 0 14px 40px 0 color-mix(in oklab, oklch(var(--n)) 45%, transparent);
+}
+
 /* Inputs get their own translucent variant so they don't read as opaque
    slabs dropped inside a glass card. Additive — pair with daisyUI's `input`
    so error/disabled state classes keep working. */
@@ -227,6 +242,16 @@
 @media (prefers-reduced-motion: reduce) {
   .app-bg-blob {
     animation: none;
+  }
+
+  /* Keep the hover brightening — it is the affordance — but drop the movement
+     and the transition that animates it. */
+  .glass-interactive {
+    transition: none;
+  }
+
+  .glass-interactive:hover {
+    transform: none;
   }
 }
 

@@ -28,27 +28,39 @@ const NoteCard = ({ note, setNotes }) => {
     }
   };
   return (
+    /* `border-t-*` only overrides the top edge of the 1px glass border, so the
+       accent stripe sits on top of the panel's own outline rather than
+       replacing it. */
     <Link
       to={`/note/${note._id}`}
-      className="card bg-base-100 border-t-4 border-solid border-[#00FF9D] hover:shadow-lg transition-shadow duration-300"
+      className="card glass-panel glass-interactive border-t-4 border-t-primary/70"
     >
       <div className="card-body">
         <h3 className="card-title text-base-content">{note.title}</h3>
-        {/* Notes are stored as editor HTML; the preview shows text, not markup. */}
-        <p className="text-base-content/70 line-clamp-3">
+        {/* Notes are stored as editor HTML; the preview shows text, not markup.
+            `grow-0` undoes daisyUI's `.card-body :where(p) { flex-grow: 1 }`,
+            which stretches the paragraph past its line-clamp box in a grid
+            that equalises card heights — a clipped fourth line then bleeds
+            through under the ellipsis. The actions row takes the slack via
+            `mt-auto` instead. */}
+        <p className="line-clamp-3 grow-0 text-base-content/80">
           {htmlToText(note.content)}
         </p>
-        <div className="card-actions items-center justify-between mt-4">
+        <div className="card-actions mt-auto items-center justify-between pt-4">
           <span className="text-sm text-base-content/70">
             {formatDate(new Date(note.createdAt))}
           </span>
           <div className="flex items-center gap-1">
-            <PenBoxIcon className="size-4 text-blue-500/70" />
+            <PenBoxIcon className="size-4 text-info/70" />
+            {/* Solid-ish rather than glass: a translucent button on a
+                translucent card washes out into it. */}
             <Button
               variant="ghost-error"
               size="sm"
+              square
               icon={Trash2Icon}
               aria-label="Delete note"
+              className="border border-base-content/10 bg-base-300/70 hover:bg-error/20"
               onClick={(e) => handelDelete(e, note._id)}
             />
           </div>
