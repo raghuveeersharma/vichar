@@ -40,11 +40,14 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12">
-      <div className="card bg-base-100 w-full max-w-md">
+    /* Subtracting the navbar keeps the card optically centred in what is left
+       of the viewport rather than pushed below the fold. The px-4 gutter is
+       what stops the panel touching the edge on a phone. */
+    <div className="flex min-h-[calc(100vh-var(--navbar-h))] items-center justify-center px-4 py-12">
+      <div className="glass-panel-strong card w-full max-w-md">
         <div className="card-body">
           <h1 className="card-title text-2xl mb-1">Welcome back</h1>
-          <p className="text-base-content/70 mb-4">
+          <p className="text-base-content/80 mb-4">
             Log in to see your notes.
           </p>
           <form onSubmit={handelSubmit}>
@@ -55,7 +58,7 @@ const LoginPage = () => {
               <input
                 type="email"
                 placeholder="you@example.com"
-                className="input input-bordered"
+                className="input input-bordered input-glass"
                 value={data.email}
                 onChange={(e) => setData({ ...data, email: e.target.value })}
                 autoComplete="email"
@@ -81,7 +84,7 @@ const LoginPage = () => {
               {loading ? "Logging in..." : "Log in"}
             </Button>
           </form>
-          <p className="text-sm text-base-content/70 mt-4 text-center">
+          <p className="text-sm text-base-content/80 mt-4 text-center">
             Don't have an account?{" "}
             <Link to="/signup" className="link link-primary">
               Sign up

@@ -20,9 +20,12 @@ const Navbar = () => {
   };
 
   return (
-    <header className="bg-base-300 border-b border-base-content/10">
-      <div className="mx-auto max-w-6xl p-4 ">
-        <div className="flex items-center justify-between">
+    /* Sticky rather than fixed, with a margin on every side, so the panel
+       floats and its blurred edge stays visible instead of reading as a
+       full-bleed opaque bar. */
+    <header className="sticky top-0 z-40 px-3 pt-3 sm:px-4 sm:pt-4">
+      <div className="glass-panel mx-auto max-w-6xl px-4 py-3 sm:px-6">
+        <div className="flex items-center justify-between gap-2">
           <Link to={"/"} className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-bold text-primary font-mono tracking-wide">
               Vichar
@@ -71,26 +74,35 @@ const Navbar = () => {
                     <div
                       tabIndex={0}
                       role="button"
-                      className="btn btn-ghost btn-sm btn-square"
+                      className="btn btn-ghost btn-sm btn-square min-h-[44px] min-w-[44px]"
                       aria-label="Open menu"
                     >
-                      <MenuIcon className="size-4" />
+                      <MenuIcon className="size-5" />
                     </div>
+                    {/* The menu is glass-on-glass over the navbar panel, so it
+                        uses the strong variant to stay legible. */}
                     <ul
                       tabIndex={0}
-                      className="dropdown-content menu z-10 mt-2 w-44 gap-1 rounded-box bg-base-200 p-2 shadow-lg"
+                      className="dropdown-content glass-panel-strong menu z-10 mt-3 w-48 gap-1 p-2"
                     >
                       <li className="menu-title px-3 py-1 text-xs">
                         {user.name}
                       </li>
                       <li>
-                        <Link to="/settings" onClick={closeMenu}>
+                        <Link
+                          to="/settings"
+                          onClick={closeMenu}
+                          className="min-h-[44px] items-center"
+                        >
                           <SettingsIcon className="size-4" />
                           settings
                         </Link>
                       </li>
                       <li>
-                        <button onClick={handelLogout} className="text-error">
+                        <button
+                          onClick={handelLogout}
+                          className="min-h-[44px] items-center text-error"
+                        >
                           <LogOutIcon className="size-4" />
                           logout
                         </button>

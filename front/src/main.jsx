@@ -12,7 +12,10 @@ createRoot(document.getElementById("root")).render(
       <AuthProvider>
         <App />
       </AuthProvider>
-      <Toaster />
+      {/* All of the pill styling lives in `.glass-toast` (index.css) rather
+          than in a `style` object here — inline styles would win over the
+          reduced-transparency fallback. */}
+      <Toaster toastOptions={{ className: "glass-toast" }} />
     </BrowserRouter>
   </StrictMode>
 );

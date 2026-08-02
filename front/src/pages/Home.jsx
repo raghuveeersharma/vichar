@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LoaderIcon } from "lucide-react";
 import RateLimitUI from "../components/RateLimitUI";
 import api from "../libs/axios";
 import { toast } from "react-hot-toast";
@@ -37,11 +38,16 @@ const Home = () => {
   return (
     <div>
       {isRateLimit && <RateLimitUI />}
-      <div className="mx-auto max-w-6xl p-4 mt-6">
-        {loading && <div className="text-primary text-lg ">Loading...</div>}
+      <div className="mx-auto mt-6 max-w-6xl px-4 py-4">
+        {loading && (
+          <div className="flex items-center justify-center gap-2 py-16 text-primary">
+            <LoaderIcon className="size-5 animate-spin" />
+            <span>Loading...</span>
+          </div>
+        )}
         {!isRateLimit && notes.length === 0 && !loading && <NotesNotFound />}
         {notes.length > 0 && !isRateLimit && (
-          <div className="grid geid-col-1 md:grid-col-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4">
             {notes.map((note) => (
               <NoteCard key={note._id} note={note} setNotes={setNotes} />
             ))}

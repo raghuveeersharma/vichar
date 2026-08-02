@@ -47,13 +47,15 @@ const CreatePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-base-200">
+    /* No `bg-base-200` here: an opaque page wrapper paints over the fixed
+       background layer, and the glass then has nothing to be seen through. */
+    <div className="min-h-screen">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
           <Button to="/" variant="ghost" icon={ArrowLeftIcon} className="mb-4">
             Back to Notes
           </Button>
-          <div className="card bg-base-100">
+          <div className="glass-panel-strong card">
             <div className="card-body">
               <h1 className="card-title text-2xl mb-4">Create New Notes</h1>
               <form onSubmit={handelSubmit}>
@@ -64,7 +66,7 @@ const CreatePage = () => {
                   <input
                     type="text"
                     placeholder="enter note title"
-                    className="input input-bordered"
+                    className="input input-bordered input-glass"
                     value={data.title}
                     onChange={(e) =>
                       setData({ ...data, title: e.target.value })

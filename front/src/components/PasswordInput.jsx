@@ -24,12 +24,14 @@ const PasswordInput = ({
           {...inputProps}
           id={id}
           type={visible ? "text" : "password"}
-          className={`input input-bordered w-full pr-10 ${inputClassName}`}
+          className={`input input-bordered input-glass w-full pr-12 ${inputClassName}`}
         />
+        {/* inset-y-0 already gives full input height; min-w keeps the hit area
+            square enough for a thumb even though the icon is 16px. */}
         <button
           type="button"
           onClick={() => setVisible((prev) => !prev)}
-          className="absolute inset-y-0 right-0 flex items-center px-3 text-base-content/50 hover:text-base-content"
+          className="absolute inset-y-0 right-0 flex min-w-[44px] items-center justify-center px-3 text-base-content/70 hover:text-base-content"
           tabIndex={-1}
           aria-label={visible ? "Hide password" : "Show password"}
         >

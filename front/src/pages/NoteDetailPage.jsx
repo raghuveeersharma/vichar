@@ -80,17 +80,17 @@ const NoteDetailPage = () => {
   };
   if (loading) {
     return (
-      <div className="min-h-screen bg-base-200 flex items-center justify-center">
-        <LoaderIcon className="animate-spin size-10" />
+      <div className="flex min-h-[calc(100vh-var(--navbar-h))] items-center justify-center">
+        <LoaderIcon className="size-10 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-base-200">
+    /* See CreatePage: no opaque wrapper, or the background layer is covered. */
+    <div className="min-h-screen">
       <div className="container mx-auto px-4 py-8 ">
         <div className="max-w-2xl mx-auto">
-          {" "}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Button to="/" variant="ghost" icon={ArrowLeftIcon}>
               Back to Notes
@@ -103,9 +103,9 @@ const NoteDetailPage = () => {
               Delete Note
             </Button>
           </div>
-          <div className="card bg-base-100 mt-4">
+          <div className="glass-panel-strong card mt-4">
             <div className="card-body">
-              <h1 className="card-title text-2xl mb-4">Create New Notes</h1>
+              <h1 className="card-title text-2xl mb-4">Edit note</h1>
               <form onSubmit={(e) => handelSubmit(e, id)}>
                 <div className="form-control mb-4">
                   <label className="label">
@@ -114,7 +114,7 @@ const NoteDetailPage = () => {
                   <input
                     type="text"
                     placeholder="enter note title"
-                    className="input input-bordered"
+                    className="input input-bordered input-glass"
                     value={data.title}
                     onChange={(e) =>
                       setData({ ...data, title: e.target.value })

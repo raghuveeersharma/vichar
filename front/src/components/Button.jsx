@@ -23,6 +23,13 @@ const SIZE_CLASSES = {
   md: "btn-sm gap-1.5 sm:btn-md sm:gap-2",
 };
 
+// daisyUI's small sizes are 24–32px tall, well under the 44px touch target a
+// finger needs. Below `md:` every button is floored at 44×44 regardless of its
+// size class — `min-height` clamps the fixed `height` daisyUI sets, and this
+// utility lands in Tailwind's utilities layer so it wins. The visible icon
+// stays small; only the hit area grows.
+const TOUCH_TARGET = "max-md:min-h-[44px] max-md:min-w-[44px]";
+
 // Shared button styled with daisyUI's `btn` classes. Renders a react-router
 // `Link` when `to` is given, otherwise a native `button`, so the same
 // variant/size/responsive props work for both real actions and nav links.
@@ -46,6 +53,7 @@ const Button = ({
     "btn",
     active ? "btn-primary" : VARIANT_CLASSES[variant] ?? "",
     SIZE_CLASSES[size] ?? "",
+    TOUCH_TARGET,
     square ? "btn-square" : "",
     fullWidth ? "w-full" : "",
     className,

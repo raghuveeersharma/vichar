@@ -43,11 +43,13 @@ const SignupPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12">
-      <div className="card bg-base-100 w-full max-w-md">
+    /* See LoginPage: the navbar is subtracted so the card centres in the
+       remaining viewport, and px-4 keeps it off the edge on a phone. */
+    <div className="flex min-h-[calc(100vh-var(--navbar-h))] items-center justify-center px-4 py-12">
+      <div className="glass-panel-strong card w-full max-w-md">
         <div className="card-body">
           <h1 className="card-title text-2xl mb-1">Create your account</h1>
-          <p className="text-base-content/70 mb-4">
+          <p className="text-base-content/80 mb-4">
             Your notes stay private to you.
           </p>
           <form onSubmit={handelSubmit}>
@@ -58,7 +60,7 @@ const SignupPage = () => {
               <input
                 type="text"
                 placeholder="your name"
-                className="input input-bordered"
+                className="input input-bordered input-glass"
                 value={data.name}
                 onChange={(e) => setData({ ...data, name: e.target.value })}
                 autoComplete="name"
@@ -72,7 +74,7 @@ const SignupPage = () => {
               <input
                 type="email"
                 placeholder="you@example.com"
-                className="input input-bordered"
+                className="input input-bordered input-glass"
                 value={data.email}
                 onChange={(e) => setData({ ...data, email: e.target.value })}
                 autoComplete="email"
@@ -99,7 +101,7 @@ const SignupPage = () => {
               {loading ? "Creating account..." : "Sign up"}
             </Button>
           </form>
-          <p className="text-sm text-base-content/70 mt-4 text-center">
+          <p className="text-sm text-base-content/80 mt-4 text-center">
             Already have an account?{" "}
             <Link to="/login" className="link link-primary">
               Log in

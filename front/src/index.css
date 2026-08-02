@@ -1,12 +1,296 @@
 @tailwind base;
 @tailwind components;
-@tailwind utilities;
 
-@layer components {
-  /* TipTap's Placeholder extension puts the text on a data attribute of the
-     first empty node; there is no <textarea placeholder> to lean on. */
-  .tiptap p.is-editor-empty:first-child::before {
-    content: attr(data-placeholder);
-    @apply pointer-events-none float-left h-0 text-base-content/40;
+/* Everything below sits between the `components` and `utilities` directives on
+   purpose, as plain top-level CSS rather than inside `@layer components`.
+   Tailwind v3 tree-shakes rules declared in a @layer against the content scan,
+   which silently dropped the base `.glass-*` rules while their nested
+   @media/@supports overrides survived — an opaque override with nothing to
+   override. Emitting them verbatim here keeps the whole set, and the position
+   (before `@tailwind utilities`) means utility classes still win on a tie. */
+
+/* Slow drift for the background blobs. */
+@keyframes glass-drift-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(6%, 8%, 0) scale(1.12);
   }
 }
+
+@keyframes glass-drift-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.08);
+  }
+  50% {
+    transform: translate3d(-8%, -6%, 0) scale(1);
+  }
+}
+
+@keyframes glass-drift-c {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(5%, -9%, 0) scale(1.15);
+  }
+}
+
+/* Glass tokens derived from the daisyUI theme variables, never from literal
+   colors — swapping the theme re-tints every panel for free. daisyUI v4 stores
+   its palette as bare oklch components, hence oklch(var(--b1)). */
+:root {
+  --glass-bg: color-mix(in oklab, oklch(var(--b1)) 55%, transparent);
+  --glass-bg-strong: color-mix(in oklab, oklch(var(--b1)) 75%, transparent);
+  --glass-border: color-mix(in oklab, oklch(var(--bc)) 12%, transparent);
+  --glass-blur: 16px;
+  --glass-blur-lg: 24px;
+  --glass-shadow: 0 8px 32px 0
+    color-mix(in oklab, oklch(var(--n)) 35%, transparent);
+  --glass-radius: 1.25rem;
+  /* The navbar is the only fixed-height chrome, and the editor toolbar has to
+     park directly under it. Single source of truth so the two sticky offsets
+     never drift apart. */
+  --navbar-h: 5rem;
+}
+
+/* daisyUI reads `var(--padding-card, 2rem)` and never defines it. 2rem across
+   both edges is 64px of a 375px viewport — enough to push the wrapped editor
+   toolbar from six buttons a row down to five. Tighten it on phones; every
+   card body picks it up. */
+@media (max-width: 639px) {
+  :root {
+    --padding-card: 1.25rem;
+  }
+}
+
+/* TipTap's Placeholder extension puts the text on a data attribute of the
+   first empty node; there is no <textarea placeholder> to lean on. */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  /* 40% measured 2.78:1 against the editor's glass inset — under AA. 60%
+     matches the input placeholders and clears it. */
+  @apply pointer-events-none float-left h-0 text-base-content/60;
+}
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-panel-strong {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur-lg)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(160%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
+}
+
+/* A recessed surface *inside* a glass panel — same tokens, deliberately no
+   backdrop-filter. Blurring what an already-blurred parent composited buys
+   nothing visually and costs another compositing pass, which is how a page
+   ends up with three stacked blur contexts during scroll. */
+.glass-inset {
+  background: color-mix(in oklab, oklch(var(--b2)) 45%, transparent);
+  border: 1px solid var(--glass-border);
+  border-radius: calc(var(--glass-radius) - 0.25rem);
+}
+
+.glass-inset:focus-within {
+  border-color: oklch(var(--p) / 0.5);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-inset {
+    background: oklch(var(--b2));
+  }
+}
+
+/* Hover affordance for panels that are themselves links or buttons. Lifts and
+   thickens the glass rather than swapping in a flat hover color, so the panel
+   reads as rising toward the viewer. Pairs with .glass-panel. */
+.glass-interactive {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.glass-interactive:hover {
+  background: var(--glass-bg-strong);
+  border-color: oklch(var(--p) / 0.35);
+  transform: translateY(-0.25rem);
+  box-shadow: 0 14px 40px 0 color-mix(in oklab, oklch(var(--n)) 45%, transparent);
+}
+
+/* Inputs get their own translucent variant so they don't read as opaque
+   slabs dropped inside a glass card. Additive — pair with daisyUI's `input`
+   so error/disabled state classes keep working.
+
+   No backdrop-filter here, deliberately. A field always sits inside a glass
+   panel, so its backdrop has already been blurred once; measured against the
+   spec's `blur(8px)` the difference peaked at 6/255 per channel — invisible —
+   while adding one compositing layer per field, which is four on the settings
+   page alone. The translucent background is what reads as glass; the second
+   blur only costs. Same reasoning as .glass-inset above. */
+.input-glass,
+.textarea-glass {
+  background: color-mix(in oklab, oklch(var(--b2)) 40%, transparent);
+  border: 1px solid var(--glass-border);
+}
+
+/* daisyUI's placeholder sits at 20% opacity, which is comfortably under AA
+   once the field itself is translucent. 60% keeps it clearly secondary to the
+   entered value while staying legible. */
+.input-glass::placeholder,
+.textarea-glass::placeholder {
+  color: oklch(var(--bc) / 0.6);
+}
+
+.input-glass:focus,
+.textarea-glass:focus,
+.input-glass:focus-within,
+.textarea-glass:focus-within {
+  background: color-mix(in oklab, oklch(var(--b2)) 65%, transparent);
+  border-color: oklch(var(--p) / 0.6);
+}
+
+/* Toasts read as small glass pills. react-hot-toast paints its own palette
+   with inline styles, which no class can beat on specificity — hence the
+   !important flags. Doing it here rather than in the <Toaster> style prop is
+   what lets the reduced-transparency and @supports overrides below still
+   apply; an inline style would swallow them. */
+.glass-toast {
+  background: var(--glass-bg-strong) !important;
+  color: oklch(var(--bc)) !important;
+  border: 1px solid var(--glass-border);
+  border-radius: 9999px;
+  box-shadow: var(--glass-shadow) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  font-size: 0.875rem;
+  max-width: min(92vw, 24rem);
+}
+
+/* Background layer: three oversized blurred blobs drifting behind
+   everything. `fixed` so it never scrolls, `pointer-events-none` so it never
+   eats a click. */
+.app-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  overflow: hidden;
+  pointer-events: none;
+  background: linear-gradient(
+    160deg,
+    oklch(var(--b3)) 0%,
+    oklch(var(--b1)) 55%,
+    oklch(var(--b2)) 100%
+  );
+}
+
+.app-bg-blob {
+  position: absolute;
+  border-radius: 9999px;
+  /* Mobile gets the smaller radius — full-strength blur on a phone GPU is a
+     real jank risk — and steps up only at >=768px. */
+  filter: blur(40px);
+  will-change: transform;
+}
+
+@media (min-width: 768px) {
+  .app-bg-blob {
+    filter: blur(64px);
+  }
+}
+
+.app-bg-blob-a {
+  top: -12%;
+  left: -10%;
+  width: 60vmin;
+  height: 60vmin;
+  background: oklch(var(--p) / 0.35);
+  animation: glass-drift-a 18s ease-in-out infinite;
+}
+
+.app-bg-blob-b {
+  top: 30%;
+  right: -14%;
+  width: 55vmin;
+  height: 55vmin;
+  background: oklch(var(--s) / 0.3);
+  animation: glass-drift-b 22s ease-in-out infinite;
+}
+
+.app-bg-blob-c {
+  bottom: -18%;
+  left: 20%;
+  width: 65vmin;
+  height: 65vmin;
+  background: oklch(var(--a) / 0.25);
+  animation: glass-drift-c 26s ease-in-out infinite;
+}
+
+/* Engines without backdrop-filter (older Safari / WebView) drop to a
+   near-opaque panel so text stays legible instead of unreadable. */
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  .glass-panel,
+  .glass-panel-strong {
+    background: oklch(var(--b1) / 0.92);
+  }
+
+  .glass-toast {
+    background: oklch(var(--b1) / 0.96) !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-panel,
+  .glass-panel-strong {
+    background: oklch(var(--b1));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .glass-toast {
+    background: oklch(var(--b1)) !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .input-glass,
+  .textarea-glass {
+    background: oklch(var(--b2));
+  }
+
+  .app-bg-blob {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-bg-blob {
+    animation: none;
+  }
+
+  /* Keep the hover brightening — it is the affordance — but drop the movement
+     and the transition that animates it. */
+  .glass-interactive {
+    transition: none;
+  }
+
+  .glass-interactive:hover {
+    transform: none;
+  }
+}
+
+@tailwind utilities;
