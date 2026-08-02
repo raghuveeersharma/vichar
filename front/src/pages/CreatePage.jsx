@@ -64,7 +64,7 @@ const CreatePage = () => {
                   <input
                     type="text"
                     placeholder="enter note title"
-                    className="input input-bordered"
+                    className="input input-bordered input-glass"
                     value={data.title}
                     onChange={(e) =>
                       setData({ ...data, title: e.target.value })

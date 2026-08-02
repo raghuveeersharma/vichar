@@ -109,6 +109,14 @@
   -webkit-backdrop-filter: blur(8px);
 }
 
+/* daisyUI's placeholder sits at 20% opacity, which is comfortably under AA
+   once the field itself is translucent. 60% keeps it clearly secondary to the
+   entered value while staying legible. */
+.input-glass::placeholder,
+.textarea-glass::placeholder {
+  color: oklch(var(--bc) / 0.6);
+}
+
 .input-glass:focus,
 .textarea-glass:focus,
 .input-glass:focus-within,

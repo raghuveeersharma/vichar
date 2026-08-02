@@ -92,13 +92,16 @@ const SettingsPage = () => {
 
           <h1 className="text-3xl font-bold mb-6">Settings</h1>
 
-          <div className="card bg-base-100 mb-6">
+          {/* One panel holding both sections rather than two floating cards:
+              stacked on a phone, separate glass slabs read as unrelated
+              screens and eat vertical space to the gap between them. */}
+          <div className="glass-panel-strong">
             <div className="card-body">
               <h2 className="card-title text-xl">
                 <MailIcon className="size-5 text-primary" />
                 Email address
               </h2>
-              <p className="text-base-content/70 mb-2">
+              <p className="text-base-content/80 mb-2">
                 You log in with this address.
               </p>
               <form onSubmit={handelEmailSubmit}>
@@ -109,7 +112,7 @@ const SettingsPage = () => {
                   <input
                     type="email"
                     placeholder="you@example.com"
-                    className="input input-bordered"
+                    className="input input-bordered input-glass"
                     value={emailForm.email}
                     onChange={(e) =>
                       setEmailForm({ ...emailForm, email: e.target.value })
@@ -143,15 +146,15 @@ const SettingsPage = () => {
                 </div>
               </form>
             </div>
-          </div>
 
-          <div className="card bg-base-100">
+            <div className="mx-6 h-px bg-base-content/10" />
+
             <div className="card-body">
               <h2 className="card-title text-xl">
                 <KeyRoundIcon className="size-5 text-primary" />
                 Password
               </h2>
-              <p className="text-base-content/70 mb-2">
+              <p className="text-base-content/80 mb-2">
                 Use at least 6 characters.
               </p>
               <form onSubmit={handelPasswordSubmit}>
