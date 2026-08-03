@@ -19,7 +19,17 @@ const UNREADABLE_PLACEHOLDER = "<p>[Encrypted — unable to decrypt]</p>";
 // client never sees the envelope and needs no crypto of its own. Encryption is
 // a storage detail, not part of the API shape.
 function toClientNote(doc, content) {
-  return { ...doc.toObject(), content };
+  const note = { ...doc.toObject(), content };
+  // Reads populate `folder` so a card can label which folder a note is in without
+  // a request per note. Flatten it back: `folder` stays an id and the name is a
+  // separate field. Handing back a populated object instead would mean the client
+  // echoes that object into the next PUT, where `folder` must be an id — a shape
+  // change on read would quietly break every save.
+  if (note.folder && typeof note.folder === "object") {
+    note.folderName = note.folder.name;
+    note.folder = note.folder._id;
+  }
+  return note;
 }
 
 function readableContent(doc, owner) {
@@ -70,9 +80,14 @@ export async function getAllNotes(req, res) {
       }
       filter.folder = folder;
     }
-    const notes = await Note.find(filter).sort({
-      createdAt: -1,
-    });
+    const notes = await Note.find(filter)
+      // One extra lookup for the whole page, versus a request per card for the
+      // folder label. Only `name` is selected — nothing else about the folder is
+      // any of the note list's business.
+      .populate("folder", "name")
+      .sort({
+        createdAt: -1,
+      });
     // One unreadable note degrades to a placeholder rather than failing the
     // whole listing — the other notes are still perfectly fine to show.
     const payload = notes.map((note) => {
@@ -141,7 +156,10 @@ export async function getNoteById(req, res) {
   try {
     const { id } = req.params;
     const owner = req.user._id;
-    const note = await Note.findOne({ _id: id, owner });
+    const note = await Note.findOne({ _id: id, owner }).populate(
+      "folder",
+      "name"
+    );
     // 404 rather than 403 for someone else's note, so the response does not
     // confirm that the id exists.
     if (!note) {

@@ -7,6 +7,7 @@ import {
   LoaderIcon,
   NotebookIcon,
   PencilIcon,
+  PlusIcon,
   Trash2Icon,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -135,26 +136,43 @@ const FolderPage = () => {
               </p>
             </div>
           </div>
-          {/* Unfiled is a view, not a folder, so it has no actions. */}
-          {!isUnfiled && folder && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                icon={PencilIcon}
-                size="sm"
-                onClick={() => setRenaming(true)}
-              >
-                rename
-              </Button>
-              <Button
-                variant="outline-error"
-                icon={Trash2Icon}
-                size="sm"
-                onClick={handleDelete}
-              >
-                delete
-              </Button>
-            </div>
+          {/* Unfiled is a view, not a folder, so it has no rename or delete. It
+              still gets "new note", which just creates an unfiled one. */}
+          {isUnfiled ? (
+            <Button to="/create" variant="primary" icon={PlusIcon} size="sm">
+              new note
+            </Button>
+          ) : (
+            folder && (
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Carries the folder in the query string, which CreatePage reads
+                    as the initial value of its folder picker. */}
+                <Button
+                  to={`/create?folder=${folderId}`}
+                  variant="primary"
+                  icon={PlusIcon}
+                  size="sm"
+                >
+                  new note
+                </Button>
+                <Button
+                  variant="ghost"
+                  icon={PencilIcon}
+                  size="sm"
+                  onClick={() => setRenaming(true)}
+                >
+                  rename
+                </Button>
+                <Button
+                  variant="outline-error"
+                  icon={Trash2Icon}
+                  size="sm"
+                  onClick={handleDelete}
+                >
+                  delete
+                </Button>
+              </div>
+            )
           )}
         </div>
 
@@ -171,13 +189,31 @@ const FolderPage = () => {
                 ? "Every note you have is filed in a folder."
                 : "Notes you put in this folder will show up here."}
             </p>
+            {/* Nothing to offer on an empty Unfiled view: a note created from here
+                would be unfiled, which is exactly the state the user is looking at
+                and would land them back on this same empty page. */}
+            {!isUnfiled && (
+              <Button
+                to={`/create?folder=${folderId}`}
+                variant="primary"
+                icon={PlusIcon}
+              >
+                New note in this folder
+              </Button>
+            )}
           </div>
         )}
 
         {notes.length > 0 && !isRateLimit && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4">
             {notes.map((note) => (
-              <NoteCard key={note._id} note={note} setNotes={setNotes} />
+              <NoteCard
+                key={note._id}
+                note={note}
+                setNotes={setNotes}
+                // Every card here is in this folder; the heading already says so.
+                showFolder={false}
+              />
             ))}
           </div>
         )}

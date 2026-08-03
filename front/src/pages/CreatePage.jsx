@@ -2,12 +2,20 @@ import { ArrowLeftIcon, LockIcon } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import api from "../libs/axios";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import RichTextEditor from "../components/RichTextEditor";
 import { isEmptyHtml } from "../libs/html";
 import Button from "../components/Button";
+import FolderSelect from "../components/FolderSelect";
+import { UNFILED } from "../libs/folders";
 
 const CreatePage = () => {
+  // `?folder=<id>` is how "new note in this folder" arrives from a folder page.
+  // Read once as the initial value rather than tracked: the select below owns the
+  // choice from here on, and re-reading the URL would overwrite a change the user
+  // just made. An id that no longer exists is caught by FolderSelect.
+  const [searchParams] = useSearchParams();
+  const [folder, setFolder] = useState(searchParams.get("folder") || UNFILED);
   const [data, setData] = useState({
     title: "",
     content: "",
@@ -30,13 +38,16 @@ const CreatePage = () => {
     }
     try {
       setSubmitting(encrypted ? "encrypted" : "plain");
-      await api.post("/notes", { ...data, encrypted });
+      await api.post("/notes", { ...data, encrypted, folder });
       toast.success(
         encrypted
           ? "Encrypted note created successfully"
           : "Note created successfully"
       );
-      navigate("/");
+      // Back to the folder the note went into, so a note created from a folder
+      // page lands somewhere it is actually visible. Unfiled notes go home, where
+      // the "all notes" grid shows everything.
+      navigate(folder === UNFILED ? "/" : `/folder/${folder}`);
     } catch (error) {
       console.error("Error creating note:", error);
       if (error.response && error.response.status === 429) {
@@ -94,6 +105,11 @@ const CreatePage = () => {
                     }
                   />
                 </div>
+                <FolderSelect
+                  value={folder}
+                  onChange={setFolder}
+                  disabled={loading}
+                />
                 <div className="form-control mb-4">
                   <label className="label">
                     <span className="label-text">content</span>

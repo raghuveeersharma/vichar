@@ -6,6 +6,8 @@ import toast from "react-hot-toast";
 import RichTextEditor from "../components/RichTextEditor";
 import { isEmptyHtml, toEditorHtml } from "../libs/html";
 import Button from "../components/Button";
+import FolderSelect from "../components/FolderSelect";
+import { UNFILED } from "../libs/folders";
 
 const NoteDetailPage = () => {
   const navigate = useNavigate();
@@ -22,7 +24,13 @@ const NoteDetailPage = () => {
         const res = await api.get(`/notes/${id}`);
         // Notes saved before the rich-text editor are plain text — promote
         // them to HTML so their line breaks survive the round trip.
-        setData({ ...res.data, content: toEditorHtml(res.data.content) });
+        // `folder` is null for an unfiled note; the select speaks in the UNFILED
+        // sentinel, and the save path maps it back.
+        setData({
+          ...res.data,
+          content: toEditorHtml(res.data.content),
+          folder: res.data.folder ?? UNFILED,
+        });
       } catch (error) {
         console.error("Error fetching notes:", error);
         if (error.response && error.response.status === 429) {
@@ -140,6 +148,14 @@ const NoteDetailPage = () => {
                     required
                   />
                 </div>
+                {/* Changing this moves the note: the save below sends `folder`
+                    alongside the body, and the API only reassigns a note when the
+                    request actually carries that key. */}
+                <FolderSelect
+                  value={data.folder ?? UNFILED}
+                  onChange={(folder) => setData({ ...data, folder })}
+                  disabled={saving}
+                />
                 <div className="form-control mb-4">
                   <label className="label">
                     <span className="label-text">content</span>

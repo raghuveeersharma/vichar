@@ -1,4 +1,4 @@
-import { LockIcon, PenBoxIcon, Trash2Icon } from "lucide-react";
+import { FolderIcon, LockIcon, PenBoxIcon, Trash2Icon } from "lucide-react";
 import { Link } from "react-router";
 import { formatDate } from "../libs/utils";
 import { htmlToText } from "../libs/html";
@@ -6,7 +6,9 @@ import api from "../libs/axios";
 import toast from "react-hot-toast";
 import Button from "./Button";
 
-const NoteCard = ({ note, setNotes }) => {
+// `showFolder` is off inside a folder page, where every card in the grid is in the
+// same folder and the label would repeat the heading on every tile.
+const NoteCard = ({ note, setNotes, showFolder = true }) => {
   const handelDelete = async (e, id) => {
     e.preventDefault();
     if (!window.confirm("Are you sure you want to delete this note?")) return;
@@ -36,6 +38,16 @@ const NoteCard = ({ note, setNotes }) => {
       className="card glass-panel glass-interactive border-t-4 border-t-primary/70"
     >
       <div className="card-body">
+        {/* Reads as a breadcrumb above the title. Plain text, not a link: the whole
+            card is already an anchor, and nesting one inside it is invalid HTML —
+            browsers close the outer <a> early and the layout falls apart.
+            `folderName` comes populated on note reads; an unfiled note has none. */}
+        {showFolder && note.folderName && (
+          <div className="flex items-center gap-1 text-xs text-base-content/60">
+            <FolderIcon className="size-3 shrink-0" />
+            <span className="truncate">{note.folderName}</span>
+          </div>
+        )}
         <h3 className="card-title text-base-content">
           {/* The body is stored encrypted, so mark it — the preview below looks
               identical to a normal note once the server has opened it, and

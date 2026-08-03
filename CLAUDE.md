@@ -52,15 +52,18 @@ server/
     │   └── gemini.js                 # lazy @google/genai client, model id, and the shared HTML output schema
     ├── routes/
     │   ├── authRoutes.js             # POST /signup · /login · /logout · GET /me · PATCH /email · /password (last three guarded)
-    │   ├── notesRoutes.js            # GET / · POST / · PUT /:id · GET /:id · DELETE /:id
+    │   ├── notesRoutes.js            # GET / (?folder=) · POST / · PUT /:id · GET /:id · DELETE /:id
+    │   ├── folderRoutes.js           # GET / · POST / · GET /:id · PATCH /:id (rename) · DELETE /:id
     │   └── aiRoutes.js               # POST /grammar · /format
     ├── controllers/
     │   ├── authControllers.js        # signup, login, logout, me, updateEmail, updatePassword
     │   ├── notesControllers.js       # getAllNotes, createNote, getNoteById, updateNoteById, deleteNoteById
+    │   ├── folderControllers.js      # getAllFolders, getFolderById, createFolder, updateFolderById, deleteFolderById
     │   └── aiControllers.js          # fixGrammar, formatNote — one Gemini call each, HTML in / HTML out
     ├── modals/                       # "models", misspelled
     │   ├── user.modal.js             # name/email/password; pre-save bcrypt hash; comparePassword; toPublicJSON
-    │   └── note.modal.js             # title/content/isEncrypted/owner + compound {owner, createdAt} index
+    │   ├── folder.modal.js           # name/owner + unique {owner, name} index under a case-insensitive collation
+    │   └── note.modal.js             # title/content/isEncrypted/folder/owner + {owner, createdAt} and {owner, folder, createdAt} indexes
     └── middlewear/                   # "middleware", misspelled
         ├── rateLimiter.js            # 50 req / 15 min per IP, applied app-wide
         ├── aiRateLimiter.js          # 15 req / 15 min per IP, only on /api/ai
@@ -87,7 +90,8 @@ front/
     │   ├── auth-context.js           # AuthContext + useAuth hook (separate file to satisfy the fast-refresh lint rule)
     │   └── AuthContext.jsx           # AuthProvider: session state, signup/login/logout, global 401 interceptor
     ├── pages/
-    │   ├── Home.jsx                  # GET /notes → NoteCard grid | NotesNotFound | RateLimitUI
+    │   ├── Home.jsx                  # FolderList + GET /notes → NoteCard grid | NotesNotFound | RateLimitUI
+    │   ├── FolderPage.jsx            # /folder/:folderId (id or "unfiled") → that folder's notes + rename/delete
     │   ├── CreatePage.jsx            # POST /notes → navigate("/")
     │   ├── NoteDetailPage.jsx        # GET/PUT/DELETE /notes/:id
     │   ├── LoginPage.jsx             # returns the user to the route ProtectedRoute bounced them from
@@ -95,6 +99,10 @@ front/
     │   └── SettingsPage.jsx          # PATCH /auth/email · /auth/password (both re-verify the current password)
     ├── components/
     │   ├── RichTextEditor.jsx        # TipTap editor + toolbar + the two AI buttons
+    │   ├── FolderList.jsx            # home-page folder strip; owns its own fetch + create/rename/delete
+    │   ├── FolderCard.jsx            # one folder tile (also renders the "Unfiled" pseudo-folder)
+    │   ├── FolderSelect.jsx          # folder picker shared by CreatePage and NoteDetailPage
+    │   ├── FolderNameDialog.jsx      # native <dialog> used for both create and rename
     │   ├── Navbar.jsx                # brand; user name + new note + logout, or log in / sign up
     │   ├── ProtectedRoute.jsx        # <Outlet> guard → /login when signed out
     │   ├── GuestRoute.jsx            # inverse guard → / when already signed in
@@ -103,15 +111,26 @@ front/
     │   └── RateLimitUI.jsx           # 429 banner
     └── libs/
         ├── axios.js                  # shared `api` instance (baseURL = VITE_SERVER_URL, withCredentials)
+        ├── folders.js                # folder API wrappers, the UNFILED sentinel, and reportFolderError
         ├── html.js                   # toEditorHtml / isEmptyHtml / htmlToText for the editor's HTML content
         └── utils.js                  # formatDate
 ```
 
-Routes are declared in `App.jsx` as two guarded groups: `/login` and `/signup` behind `GuestRoute`, and `/`, `/create`, `/note/:id`, `/settings` behind `ProtectedRoute`. There is no data-fetching library — each page owns `useState` for `data`/`loading` and calls the shared `api` instance directly inside `useEffect` or a submit handler. `AuthContext` is the only global state. `NoteCard` receives `setNotes` from `Home` so it can splice a deleted note out of the parent list; that prop-drilled setter is the only cross-component state channel.
+Routes are declared in `App.jsx` as two guarded groups: `/login` and `/signup` behind `GuestRoute`, and `/`, `/create`, `/note/:id`, `/folder/:folderId`, `/settings` behind `ProtectedRoute`. There is no data-fetching library — each page owns `useState` for `data`/`loading` and calls the shared `api` instance directly inside `useEffect` or a submit handler. `AuthContext` is the only global state. `NoteCard` receives `setNotes` from `Home` so it can splice a deleted note out of the parent list; that prop-drilled setter is the only cross-component state channel.
 
 ## Architecture notes
 
 **Note content is TipTap HTML, not plain text.** `content` is still a plain `String` in Mongo, but it now holds an HTML fragment produced by [RichTextEditor.jsx](front/src/components/RichTextEditor.jsx). Three consequences: never render it with `{note.content}` (run it through `htmlToText` — see [NoteCard.jsx](front/src/components/NoteCard.jsx)); never validate emptiness with `content.trim()`, because an empty document serialises to `<p></p>` (use `isEmptyHtml`); and notes written before the editor existed are plain text, so reads pass them through `toEditorHtml` to keep their line breaks. The tag set the editor round-trips is fixed by the StarterKit extensions it registers, and `ALLOWED_TAGS` in [libs/gemini.js](server/src/libs/gemini.js) mirrors it — widening one without the other means the model emits markup the editor silently drops.
+
+**Folders are flat, and the note owns the relationship.** A folder is just `{name, owner}` — there is no parent ref, so no depth, no cycle checks and no recursion anywhere. A note carries `folder` (nullable; `null` means "unfiled"), and the folder never holds a list of note ids, so moving a note is a one-document write and the two sides cannot disagree about where a note lives. What to preserve:
+
+- **`GET /notes` with no `folder` param returns everything.** Folders narrow the listing, they do not partition it — the home page still shows every note under "All notes", including the ones inside folders. `?folder=<id>` and `?folder=unfiled` narrow it; `unfiled` is a literal the API accepts, and the same string is the `:folderId` route param on the client, so the route value forwards straight into the query.
+- **`{folder: null}` matches a missing field in Mongo**, which is why notes written before folders existed show up under Unfiled with no migration.
+- **A `folder` value from the client is never trusted.** `resolveFolder` proves the id belongs to the requesting user before it is stored; a foreign or malformed id is a 404. Without that, a note could be filed into a stranger's folder, which would corrupt their note count and confirm the id exists.
+- **`updateNoteById` only reassigns a note when the request body actually contains a `folder` key** (`"folder" in req.body`). Reading it unconditionally would dump every note saved by a request that sends only title and content back into Unfiled.
+- **Duplicate names are caught by the unique index, not a pre-check.** A read-then-write check has a race two concurrent creates would both pass, so the controllers let the `E11000` write error surface and map it to 409. The index uses a case-insensitive collation, so `Work` and `work` collide; queries that compare names must pass the same collation or the index's view and the query's view disagree.
+- **Deleting a folder is refused while it still holds notes** (409, with the count in the message), so a folder delete can never take writing with it. The count is checked before the delete rather than repaired after, keeping it one decision with no half-applied state.
+- **Note reads populate `folder` but the API still returns an id.** `toClientNote` flattens the populated document into `folder` (id) plus `folderName` (string). Returning the populated object instead would break saves: the client echoes what it read into the next `PUT`, where `folder` must be an id.
 
 **Encryption is opt-in per note, applied at the storage boundary only.** `CreatePage` has two submit buttons; the encrypted one posts `encrypted: true`, and [notesControllers.js](server/src/controllers/notesControllers.js) seals `content` with AES-256-GCM via [libs/noteCrypto.js](server/src/libs/noteCrypto.js) before `Note.create`, storing the `enc:v1:<iv>:<tag>:<ciphertext>` envelope in the same plain `String` field. Four rules hold this together:
 
@@ -128,7 +147,7 @@ Read the key lazily (as `noteCrypto.js` does), never at module top level: `index
 
 **Two places report an AI refusal, and both return HTTP 200.** `response.promptFeedback.blockReason` covers an input the filters rejected; `candidates[0].finishReason` covers the output — anything other than `STOP` means the reply is unusable. Check both before touching `response.text`, or a blocked request surfaces as a JSON parse error. The controller maps `MAX_TOKENS` → 413 and every other non-`STOP` reason → 422.
 
-**API surface.** `/api/auth` (public, except `GET /me`), `/api/notes` (fully guarded), and `/api/ai` (guarded + rate-limited). The guard is mounted at the router level in [index.js](server/src/index.js) — `app.use("/api/notes", protect, router)` — so every note route is protected by construction and a newly added route cannot forget it.
+**API surface.** `/api/auth` (public, except `GET /me`), `/api/notes` and `/api/folders` (fully guarded), and `/api/ai` (guarded + rate-limited). The guard is mounted at the router level in [index.js](server/src/index.js) — `app.use("/api/notes", protect, router)` — so every note route is protected by construction and a newly added route cannot forget it.
 
 **Tenant isolation lives in the query, not in a check.** Every handler in [notesControllers.js](server/src/controllers/notesControllers.js) filters on `owner: req.user._id` — `findOne({ _id: id, owner })`, `findOneAndUpdate`, `findOneAndDelete` — rather than fetching by id and then comparing ownership. Keep that shape: a bare `findById`/`findByIdAndUpdate` in this file is a cross-tenant data leak. Another user's note returns **404, not 403**, so responses never confirm that an id exists.
 
