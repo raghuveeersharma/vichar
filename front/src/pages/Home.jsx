@@ -5,6 +5,7 @@ import api from "../libs/axios";
 import { toast } from "react-hot-toast";
 import NoteCard from "../components/NoteCard";
 import NotesNotFound from "../components/NotesNotFound";
+import FolderList from "../components/FolderList";
 
 const Home = () => {
   const [isRateLimit, setIsRateLimit] = useState(false);
@@ -39,6 +40,10 @@ const Home = () => {
     <div>
       {isRateLimit && <RateLimitUI />}
       <div className="mx-auto mt-6 max-w-6xl px-4 py-4">
+        {/* Folders own their own fetch and render nothing until it settles, so
+            they never delay or block the note grid below. Hidden under a rate
+            limit, where the banner has already explained why the page is bare. */}
+        {!isRateLimit && <FolderList />}
         {loading && (
           <div className="flex items-center justify-center gap-2 py-16 text-primary">
             <LoaderIcon className="size-5 animate-spin" />
@@ -47,11 +52,19 @@ const Home = () => {
         )}
         {!isRateLimit && notes.length === 0 && !loading && <NotesNotFound />}
         {notes.length > 0 && !isRateLimit && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4">
-            {notes.map((note) => (
-              <NoteCard key={note._id} note={note} setNotes={setNotes} />
-            ))}
-          </div>
+          <>
+            {/* "All notes", not "Notes": this grid is every note the user owns,
+                including the ones inside the folders listed above. Folders
+                narrow the view, they do not partition it. */}
+            <h2 className="mb-3 text-lg font-semibold text-base-content/90">
+              All notes
+            </h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4">
+              {notes.map((note) => (
+                <NoteCard key={note._id} note={note} setNotes={setNotes} />
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>
