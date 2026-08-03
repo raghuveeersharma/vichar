@@ -1,6 +1,7 @@
 import express from "express";
 import router from "./routes/notesRoutes.js";
 import authRouter from "./routes/authRoutes.js";
+import folderRouter from "./routes/folderRoutes.js";
 import aiRouter from "./routes/aiRoutes.js";
 import db from "./config/db.js";
 import dotenv from "dotenv";
@@ -37,6 +38,7 @@ app.use(cookieParser()); // Populate req.cookies so `protect` can read the JWT
 
 app.use("/api/auth", authRouter); // Public: signup / login / logout (+ guarded /me)
 app.use("/api/notes", protect, router); // Every note route requires a valid session
+app.use("/api/folders", protect, folderRouter); // Same: guarded at the mount
 app.use("/api/ai", protect, aiRateLimiter, aiRouter); // Guarded + its own tighter budget
 
 const PORT = process.env.PORT || 5000;

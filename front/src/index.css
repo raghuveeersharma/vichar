@@ -140,9 +140,13 @@
    while adding one compositing layer per field, which is four on the settings
    page alone. The translucent background is what reads as glass; the second
    blur only costs. Same reasoning as .glass-inset above. */
+/* `background-color`, not the `background` shorthand: the shorthand also resets
+   `background-image`, and daisyUI draws a <select>'s dropdown chevron with two
+   background-image gradients. Using the shorthand here silently erased the arrow
+   and left the folder picker looking like a plain text field. */
 .input-glass,
 .textarea-glass {
-  background: color-mix(in oklab, oklch(var(--b2)) 40%, transparent);
+  background-color: color-mix(in oklab, oklch(var(--b2)) 40%, transparent);
   border: 1px solid var(--glass-border);
 }
 
@@ -158,7 +162,9 @@
 .textarea-glass:focus,
 .input-glass:focus-within,
 .textarea-glass:focus-within {
-  background: color-mix(in oklab, oklch(var(--b2)) 65%, transparent);
+  /* background-color for the same reason as above — a focused select must keep
+     its chevron. */
+  background-color: color-mix(in oklab, oklch(var(--b2)) 65%, transparent);
   border-color: oklch(var(--p) / 0.6);
 }
 
@@ -269,7 +275,7 @@
 
   .input-glass,
   .textarea-glass {
-    background: oklch(var(--b2));
+    background-color: oklch(var(--b2));
   }
 
   .app-bg-blob {

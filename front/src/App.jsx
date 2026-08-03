@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router";
 import Home from "./pages/Home";
 import CreatePage from "./pages/CreatePage";
 import NoteDetailPage from "./pages/NoteDetailPage";
+import FolderPage from "./pages/FolderPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -26,6 +27,9 @@ const App = () => {
           <Route path="/" element={<Home />} />
           <Route path="/create" element={<CreatePage />} />
           <Route path="/note/:id" element={<NoteDetailPage />} />
+          {/* `:folderId` is a folder id, or the literal "unfiled" for the notes
+              that belong to no folder — the API accepts the same two values. */}
+          <Route path="/folder/:folderId" element={<FolderPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Routes>
