@@ -41,6 +41,25 @@ export function isEncryptionConfigured() {
   return Boolean(process.env.NOTE_ENCRYPTION_KEY);
 }
 
+// Null when encrypted notes can actually be written, otherwise the reason they
+// cannot, ready to send to the client. Callers check this instead of only asking
+// whether the variable is set: a key that is present but the wrong length fails
+// just as completely, and routing it through the same 503 keeps a configuration
+// mistake from being reported as "Internal server error". Same reasoning as the
+// AI controller naming the model in its 503 — a misconfiguration should say so.
+export function encryptionUnavailableReason() {
+  if (!isEncryptionConfigured()) {
+    return "Encrypted notes are not available: NOTE_ENCRYPTION_KEY is not configured on the server";
+  }
+  try {
+    // Parses and caches on the first call, so this costs nothing after boot.
+    getKey();
+    return null;
+  } catch (error) {
+    return `Encrypted notes are not available: ${error.message}`;
+  }
+}
+
 function getKey() {
   if (!cachedKey) {
     if (!isEncryptionConfigured()) {
