@@ -1,4 +1,4 @@
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, LockIcon } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import api from "../libs/axios";
@@ -12,38 +12,59 @@ const CreatePage = () => {
     title: "",
     content: "",
   });
-  const [loading, setLoading] = useState(false);
+  // Which of the two submit buttons is in flight — not a plain boolean, so only
+  // the clicked button shows a spinner while both stay disabled.
+  const [submitting, setSubmitting] = useState(null);
+  const loading = submitting !== null;
   const navigate = useNavigate();
 
-  const handelSubmit = async (e) => {
-    e.preventDefault();
+  // `encrypted` is the whole difference between the two buttons: the body is
+  // sealed server-side before it is written, so the plaintext never lands in
+  // Mongo. Decryption is transparent on read, so nothing else in the app cares.
+  const createNote = async ({ encrypted }) => {
     const { title, content } = data;
+    // The editor emits "<p></p>" for an empty document, so check the text.
+    if (!title.trim() || isEmptyHtml(content)) {
+      toast.error("All fields are required");
+      return;
+    }
     try {
-      setLoading(true);
-      // The editor emits "<p></p>" for an empty document, so check the text.
-      if (!title.trim() || isEmptyHtml(content)) {
-        toast.error("All fields are required");
-        return;
-      }
-      const res = await api.post("/notes", data);
-      console.log(res.data);
-      toast.success("Note created successfully");
+      setSubmitting(encrypted ? "encrypted" : "plain");
+      await api.post("/notes", { ...data, encrypted });
+      toast.success(
+        encrypted
+          ? "Encrypted note created successfully"
+          : "Note created successfully"
+      );
       navigate("/");
     } catch (error) {
       console.error("Error creating note:", error);
-      setLoading(false);
       if (error.response && error.response.status === 429) {
         toast.error("Slow down, you are creating too many requests.", {
           duration: 5000,
           position: "top-center",
           icon: "🚨",
         });
-      } else {
+      } else if (error.response?.status === 503) {
+        // The server has no encryption key, so it refused rather than saving the
+        // note in the clear. Say so — retrying the same button will not help.
+        toast.error(
+          error.response.data?.message ??
+            "Encrypted notes are not available right now",
+          { duration: 6000 }
+        );
+      } else if (error.response?.status !== 401) {
         toast.error("Failed to create note");
       }
     } finally {
-      setLoading(false);
+      setSubmitting(null);
     }
+  };
+
+  const handelSubmit = (e) => {
+    e.preventDefault();
+    // Enter in the title field submits the form; that is the plain create.
+    createNote({ encrypted: false });
   };
 
   return (
@@ -83,13 +104,29 @@ const CreatePage = () => {
                     placeholder="enter note content"
                   />
                 </div>
-                <div className="card-actions justify-end">
+                {/* Wraps on a narrow screen instead of squeezing two labels
+                    onto one line. The encrypted action is the outline variant:
+                    it is the deliberate choice, not the default one. */}
+                <div className="card-actions flex-wrap justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline-primary"
+                    icon={LockIcon}
+                    loading={submitting === "encrypted"}
+                    disabled={loading}
+                    onClick={() => createNote({ encrypted: true })}
+                  >
+                    {submitting === "encrypted"
+                      ? "encrypting..."
+                      : "create encrypted note"}
+                  </Button>
                   <Button
                     type="submit"
                     variant="primary"
-                    loading={loading}
+                    loading={submitting === "plain"}
+                    disabled={loading}
                   >
-                    {loading ? "creating..." : "create note"}
+                    {submitting === "plain" ? "creating..." : "create note"}
                   </Button>
                 </div>
               </form>
