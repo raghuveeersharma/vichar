@@ -1,4 +1,4 @@
-import { PenBoxIcon, Trash2Icon } from "lucide-react";
+import { LockIcon, PenBoxIcon, Trash2Icon } from "lucide-react";
 import { Link } from "react-router";
 import { formatDate } from "../libs/utils";
 import { htmlToText } from "../libs/html";
@@ -36,14 +36,32 @@ const NoteCard = ({ note, setNotes }) => {
       className="card glass-panel glass-interactive border-t-4 border-t-primary/70"
     >
       <div className="card-body">
-        <h3 className="card-title text-base-content">{note.title}</h3>
+        <h3 className="card-title text-base-content">
+          {/* The body is stored encrypted, so mark it — the preview below looks
+              identical to a normal note once the server has opened it, and
+              nothing else would tell the two apart. */}
+          {note.isEncrypted && (
+            <LockIcon
+              className="size-4 shrink-0 text-primary"
+              aria-label="Encrypted note"
+            />
+          )}
+          {note.title}
+        </h3>
         {/* Notes are stored as editor HTML; the preview shows text, not markup.
             `grow-0` undoes daisyUI's `.card-body :where(p) { flex-grow: 1 }`,
             which stretches the paragraph past its line-clamp box in a grid
             that equalises card heights — a clipped fourth line then bleeds
             through under the ellipsis. The actions row takes the slack via
             `mt-auto` instead. */}
-        <p className="line-clamp-3 grow-0 text-base-content/80">
+        {/* `decryptError` means the server has the ciphertext but could not open
+            it (key rotated or lost). It sends a placeholder in place of the
+            body, so flag it as a fault rather than passing it off as content. */}
+        <p
+          className={`line-clamp-3 grow-0 ${
+            note.decryptError ? "italic text-error/80" : "text-base-content/80"
+          }`}
+        >
           {htmlToText(note.content)}
         </p>
         <div className="card-actions mt-auto items-center justify-between pt-4">

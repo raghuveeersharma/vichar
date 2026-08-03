@@ -33,7 +33,7 @@ There are no tests in either package — `server`'s `test` script is the npm def
 
 Both packages read env from their own `.env`, which is gitignored.
 
-- `server/.env` — `PORT`, `MONGODB_URI`, `CORS_ORIGIN`, `JWT_SECRET`, `NODE_ENV`, `GEMINI_API_KEY`, `GEMINI_MODEL`. The last two are the only optional ones: without `GEMINI_API_KEY` the server still boots and `/api/ai/*` answers `503`, and `GEMINI_MODEL` just overrides the default `gemini-2.5-flash`. `CORS_ORIGIN` must be the frontend's **exact** origin, not a wildcard: `cors` runs with `credentials: true`, and browsers reject `*` on credentialed requests, which silently breaks auth. Missing `JWT_SECRET` exits the process at boot rather than failing per request. `NODE_ENV=production` switches the auth cookie to `Secure` + `SameSite=None`, which is required when the SPA and API are on different domains.
+- `server/.env` — `PORT`, `MONGODB_URI`, `CORS_ORIGIN`, `JWT_SECRET`, `NODE_ENV`, `NOTE_ENCRYPTION_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`. The last three are the only optional ones: without `GEMINI_API_KEY` the server still boots and `/api/ai/*` answers `503`, `GEMINI_MODEL` just overrides the default `gemini-2.5-flash`, and without `NOTE_ENCRYPTION_KEY` everything works except creating an encrypted note, which answers `503`. `NOTE_ENCRYPTION_KEY` must decode to exactly 32 bytes (`openssl rand -hex 32`, or base64) — anything else throws rather than being padded or hashed into shape. Changing or losing it makes every existing encrypted note permanently unreadable, so it is the one env value that must be backed up outside `.env` and kept identical across environments sharing a database. `CORS_ORIGIN` must be the frontend's **exact** origin, not a wildcard: `cors` runs with `credentials: true`, and browsers reject `*` on credentialed requests, which silently breaks auth. Missing `JWT_SECRET` exits the process at boot rather than failing per request. `NODE_ENV=production` switches the auth cookie to `Secure` + `SameSite=None`, which is required when the SPA and API are on different domains.
 - `front/.env` — `VITE_SERVER_URL`, which must include the `/api` suffix (e.g. `http://localhost:5000/api`) because [axios.js](front/src/libs/axios.js) sets it as `baseURL` and callers request paths like `/notes`. Note the example file lives at `front/src/.env.example` but Vite loads `.env` from `front/`.
 
 ## Folder structure
@@ -48,6 +48,7 @@ server/
     ├── config/db.js                  # mongoose.connect(MONGODB_URI); process.exit(1) on failure
     ├── libs/
     │   ├── token.js                  # sign/verify JWT + set/clear the httpOnly cookie (single source of cookie flags)
+    │   ├── noteCrypto.js             # AES-256-GCM seal/open for note bodies (lazy key, `enc:v1:...` envelope)
     │   └── gemini.js                 # lazy @google/genai client, model id, and the shared HTML output schema
     ├── routes/
     │   ├── authRoutes.js             # POST /signup · /login · /logout · GET /me · PATCH /email · /password (last three guarded)
@@ -59,7 +60,7 @@ server/
     │   └── aiControllers.js          # fixGrammar, formatNote — one Gemini call each, HTML in / HTML out
     ├── modals/                       # "models", misspelled
     │   ├── user.modal.js             # name/email/password; pre-save bcrypt hash; comparePassword; toPublicJSON
-    │   └── note.modal.js             # title/content/owner + compound {owner, createdAt} index
+    │   └── note.modal.js             # title/content/isEncrypted/owner + compound {owner, createdAt} index
     └── middlewear/                   # "middleware", misspelled
         ├── rateLimiter.js            # 50 req / 15 min per IP, applied app-wide
         ├── aiRateLimiter.js          # 15 req / 15 min per IP, only on /api/ai
@@ -111,6 +112,15 @@ Routes are declared in `App.jsx` as two guarded groups: `/login` and `/signup` b
 ## Architecture notes
 
 **Note content is TipTap HTML, not plain text.** `content` is still a plain `String` in Mongo, but it now holds an HTML fragment produced by [RichTextEditor.jsx](front/src/components/RichTextEditor.jsx). Three consequences: never render it with `{note.content}` (run it through `htmlToText` — see [NoteCard.jsx](front/src/components/NoteCard.jsx)); never validate emptiness with `content.trim()`, because an empty document serialises to `<p></p>` (use `isEmptyHtml`); and notes written before the editor existed are plain text, so reads pass them through `toEditorHtml` to keep their line breaks. The tag set the editor round-trips is fixed by the StarterKit extensions it registers, and `ALLOWED_TAGS` in [libs/gemini.js](server/src/libs/gemini.js) mirrors it — widening one without the other means the model emits markup the editor silently drops.
+
+**Encryption is opt-in per note, applied at the storage boundary only.** `CreatePage` has two submit buttons; the encrypted one posts `encrypted: true`, and [notesControllers.js](server/src/controllers/notesControllers.js) seals `content` with AES-256-GCM via [libs/noteCrypto.js](server/src/libs/noteCrypto.js) before `Note.create`, storing the `enc:v1:<iv>:<tag>:<ciphertext>` envelope in the same plain `String` field. Four rules hold this together:
+
+- **Decryption is transparent, so encryption never reaches the API shape.** Every read opens the body before responding, which is why `NoteCard`, `RichTextEditor` and `/api/ai` needed no changes — they only ever see plaintext HTML. Nothing crypto-related exists on the client; the lock icon and badge are driven purely by the `isEncrypted` boolean.
+- **`isEncrypted` on the document is the only authority.** Controllers branch on the stored flag, never on sniffing `content` for the prefix, and `updateNoteById` reads it back before saving so an encrypted note stays encrypted whatever the client sends — otherwise an ordinary edit would silently rewrite the body as plaintext. There is deliberately no way to toggle an existing note; add one only by re-encrypting through the same helper.
+- **The owner id is the GCM additional authenticated data.** That binds a blob to one user, so a ciphertext moved between rows fails its tag check instead of decrypting. It also means the AAD passed to `decryptContent` must be the same `req.user._id` used to encrypt — this is a second line of defence behind the `owner` query filter, not a replacement for it.
+- **A body that will not open is handled differently per route.** `getAllNotes` substitutes a placeholder and sets `decryptError: true` so one bad note does not fail the whole listing; `getNoteById` returns **500 instead of a placeholder**, because that response populates the edit form and a placeholder there would be saved straight back over the ciphertext. Keep that asymmetry — it is the difference between an unreadable note and a destroyed one.
+
+Read the key lazily (as `noteCrypto.js` does), never at module top level: `index.js` calls `dotenv.config()` in its module body, which ESM runs *after* every import has already been evaluated, so a key captured at import time is always `undefined`.
 
 **AI editing is two stateless one-shot Gemini calls.** [aiControllers.js](server/src/controllers/aiControllers.js) sends the note body to `@google/genai` and returns the rewrite; there is no conversation, no history, and nothing persisted — the client decides whether to save. Both actions share one `systemInstruction` preamble and differ only in task and thinking depth (`grammar` proofreads at `ThinkingLevel.MINIMAL`, `format` restructures at `LOW`). `responseMimeType: "application/json"` plus `responseSchema: HTML_RESULT_SCHEMA` is what lets the controller `JSON.parse(response.text)` with no fence-stripping or preamble-trimming. Note that `responseSchema` is Gemini's OpenAPI-flavoured `Schema`, not full JSON Schema — `additionalProperties` and similar keywords are outside the accepted subset, and `type` uses the SDK's `Type` enum.
 

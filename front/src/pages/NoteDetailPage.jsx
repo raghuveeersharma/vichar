@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import api from "../libs/axios";
-import { ArrowLeftIcon, LoaderIcon, Trash2 } from "lucide-react";
+import { ArrowLeftIcon, LoaderIcon, LockIcon, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import RichTextEditor from "../components/RichTextEditor";
 import { isEmptyHtml, toEditorHtml } from "../libs/html";
@@ -31,6 +31,14 @@ const NoteDetailPage = () => {
           // Either the note is gone or it belongs to another user — the API
           // does not distinguish the two on purpose.
           toast.error("Note not found");
+          navigate("/", { replace: true });
+        } else if (error.response?.status === 500) {
+          // Covers the one 500 worth naming: an encrypted note the server could
+          // not open. Bounce rather than opening an empty editor over it — a
+          // save from here would replace the ciphertext with nothing.
+          toast.error(
+            error.response.data?.message ?? "Failed to fetch notes"
+          );
           navigate("/", { replace: true });
         } else if (error.response?.status !== 401) {
           toast.error("Failed to fetch notes");
@@ -105,7 +113,17 @@ const NoteDetailPage = () => {
           </div>
           <div className="glass-panel-strong card mt-4">
             <div className="card-body">
-              <h1 className="card-title text-2xl mb-4">Edit note</h1>
+              <h1 className="card-title text-2xl mb-4">
+                Edit note
+                {/* Encryption is fixed at creation, so this is a status badge,
+                    not a toggle — an edit re-encrypts with the same key. */}
+                {data.isEncrypted && (
+                  <span className="badge badge-primary badge-outline gap-1 align-middle text-xs font-normal">
+                    <LockIcon className="size-3" />
+                    Encrypted
+                  </span>
+                )}
+              </h1>
               <form onSubmit={(e) => handelSubmit(e, id)}>
                 <div className="form-control mb-4">
                   <label className="label">

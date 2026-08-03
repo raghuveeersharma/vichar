@@ -5,9 +5,18 @@ const noteShema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // Either the editor's HTML fragment or, when `isEncrypted`, the
+    // `enc:v1:...` envelope from libs/noteCrypto.js. Still a plain String
+    // either way, so nothing else in the schema has to know the difference.
     content: {
       type: String,
       required: true,
+    },
+    // Set once at creation and preserved by updates. Controllers read this to
+    // decide whether `content` needs decrypting — never sniff the string.
+    isEncrypted: {
+      type: Boolean,
+      default: false,
     },
     // Tenant boundary: every query in notesControllers filters on this field,
     // so a note is only ever visible to the user who created it.
