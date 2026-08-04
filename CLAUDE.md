@@ -77,13 +77,14 @@ Flat three-layer flow: route → controller → model. Every controller wraps it
 ```
 front/
 ├── .env                              # VITE_SERVER_URL (example lives at src/.env.example)
-├── index.html                        # #root mount point
-├── vite.config.js                    # @vitejs/plugin-react only
+├── index.html                        # #root mount point + PWA/iOS meta tags
+├── vite.config.js                    # @vitejs/plugin-react + vite-plugin-pwa (manifest, workbox)
 ├── tailwind.config.js                # daisyUI, themes: ["forest"]
 ├── postcss.config.js · eslint.config.js
 ├── vercel.json                       # SPA rewrite: /(.*) → /
+├── public/                           # icon.svg, pwa-192/512, pwa-maskable-512, apple-touch-icon, favicon-64
 └── src/
-    ├── main.jsx                      # StrictMode > BrowserRouter > AuthProvider > App, + <Toaster />
+    ├── main.jsx                      # StrictMode > BrowserRouter > AuthProvider > App, + <Toaster /> + <PWAPrompts />
     ├── App.jsx                       # <Navbar /> + Routes split into GuestRoute / ProtectedRoute groups
     ├── index.css                     # tailwind directives
     ├── context/
@@ -108,7 +109,8 @@ front/
     │   ├── GuestRoute.jsx            # inverse guard → / when already signed in
     │   ├── NoteCard.jsx              # card link to /note/:id; owns its own DELETE + optimistic setNotes
     │   ├── NotesNotFound.jsx         # empty state → /create
-    │   └── RateLimitUI.jsx           # 429 banner
+    │   ├── RateLimitUI.jsx           # 429 banner
+    │   └── PWAPrompts.jsx            # service-worker update toast + install banner
     └── libs/
         ├── axios.js                  # shared `api` instance (baseURL = VITE_SERVER_URL, withCredentials)
         ├── folders.js                # folder API wrappers, the UNFILED sentinel, and reportFolderError
@@ -160,6 +162,15 @@ Read the key lazily (as `noteCrypto.js` does), never at module top level: `index
 **Session handling on the client is centralised in two places.** `AuthProvider` exposes `checking`, which is true until the boot `GET /auth/me` settles; both route guards must render a spinner while it is true, or a signed-in user gets bounced to `/login` on every refresh. It also installs an axios response interceptor that clears the user on any non-`/auth/` 401, which is what makes an expired cookie redirect to login on its own — so pages should stay silent on 401 rather than showing a "failed to fetch" toast.
 
 **`getAllNotes` returns `200 []` for a user with no notes** (it used to 404 on an empty collection). `Home` distinguishes empty from loading via its `loading` flag, which starts `true` so the empty state does not flash on first paint.
+
+**The SPA is an installable PWA, and the service worker caches the shell only.** [vite-plugin-pwa](front/vite.config.js) generates `manifest.webmanifest` and a Workbox `sw.js` at build time; both exist only in `dist/`, so `npm run dev` runs with a no-op `useRegisterSW` stub and nothing to unregister. Four things hold this together:
+
+- **No API response is ever cached.** Note bodies can be encrypted and every response is scoped to the signed-in user, so a copy in the Cache API would outlive the cookie that authorised it. The precache covers built assets only; the shell opens offline, the data deliberately does not. Adding a `runtimeCaching` rule for anything under `VITE_SERVER_URL` would break that — if offline reads are ever wanted, they belong in app state, not in the SW.
+- **`registerType: "prompt"`, never `"autoUpdate"`.** `autoUpdate` reloads the tab the instant a new worker activates, which would throw away whatever is in the TipTap editor. [PWAPrompts.jsx](front/src/components/PWAPrompts.jsx) shows a toast and only calls `updateServiceWorker(true)` on a click.
+- **`beforeinstallprompt` must be captured, deferred, and used once.** The event is preventDefault'd so the browser's own infobar does not take over, held in state, and dropped after `prompt()` — a second call on the same event throws. iOS fires it never, so `PWAPrompts` falls back to Share → Add to Home Screen instructions there, detected by platform rather than by browser (every iOS browser is WebKit).
+- **iOS reads the `<link rel="apple-touch-icon">` and the `apple-*` meta tags in [index.html](front/index.html), not the manifest.** The status bar is `black` rather than `black-translucent` on purpose: translucent starts the web view at y=0 and the sticky navbar would run under the clock, which needs safe-area insets the layout does not have. Icons are generated from the `forest` palette, and the maskable variant keeps the mark inside the 80% safe circle Android crops to.
+
+`vercel.json`'s catch-all rewrite does not shadow `/sw.js` or `/manifest.webmanifest` — Vercel checks the filesystem before applying rewrites. Any other host needs the same behaviour, or the browser is served `index.html` where it expects the worker and registration fails.
 
 **Frontend conventions.** Rich text via `@tiptap/react` v3 — note that `useEditor` does **not** re-render on every transaction in v3, so toolbar active states must come from `useEditorState`, and the editor is uncontrolled: `value` is only pushed in via `setContent` when it differs from `editor.getHTML()`, or the caret jumps on every keystroke. Editor content is styled with the `prose` classes from `@tailwindcss/typography`. Routing via `react-router` v7 (`Routes` in [App.jsx](front/src/App.jsx), `BrowserRouter` in [main.jsx](front/src/main.jsx)); `vercel.json` rewrites all paths to `/` for SPA deep links. Toasts via `react-hot-toast` (single `<Toaster />` at the root). Icons from `lucide-react`. Styling is Tailwind + daisyUI locked to the `forest` theme — use daisyUI semantic classes (`text-primary`, `base-content`, `bg-primary/10`) rather than raw colors.
 
