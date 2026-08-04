@@ -3,7 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png" />
+    <!-- iOS ignores the manifest's icons, so the home-screen icon comes from
+         this link and nowhere else. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Write, encrypt and organise your notes." />
+    <meta name="theme-color" content="#171212" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- Still required on iOS, which does not read the standard name above.
+         The status bar is "black" rather than "black-translucent" on purpose:
+         translucent makes the web view start at y=0 and the sticky navbar
+         would run under the clock, which would need safe-area insets the
+         layout does not have. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Vichar" />
     <title>Vichar</title>
   </head>
   <body >
