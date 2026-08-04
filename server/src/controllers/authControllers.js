@@ -106,6 +106,39 @@ export async function updateEmail(req, res) {
   }
 }
 
+// Account preferences. Deliberately does not ask for the current password the
+// way updateEmail and updatePassword do: this changes nothing about who can get
+// into the account, and the worst a stolen cookie achieves here is hiding or
+// showing a button.
+export async function updatePreferences(req, res) {
+  try {
+    const { encryptedNotesEnabled } = req.body;
+    // Strict boolean check, not a truthiness coercion — a client sending the
+    // string "false" would otherwise silently turn the setting on.
+    if (typeof encryptedNotesEnabled !== "boolean") {
+      return res
+        .status(400)
+        .json({ message: "encryptedNotesEnabled must be true or false" });
+    }
+
+    // findByIdAndUpdate rather than mutate-and-save(): protect() loads the user
+    // without `password` (select:false), and saving a document whose required
+    // field was never selected leans on Mongoose's unselected-path validation
+    // rules. A targeted $set has no such question — it writes one field and
+    // touches nothing else.
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { encryptedNotesEnabled },
+      { new: true }
+    );
+
+    res.status(200).json({ user: user.toPublicJSON() });
+  } catch (error) {
+    console.error("Error in updatePreferences:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
 export async function updatePassword(req, res) {
   try {
     const { currentPassword, newPassword } = req.body;

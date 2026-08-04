@@ -128,6 +128,16 @@ export async function createNote(req, res) {
     // unacceptable outcome here.
     const shouldEncrypt = Boolean(encrypted);
     if (shouldEncrypt) {
+      // The per-account setting is enforced here, not only in the UI that hides
+      // the button. A preference the API ignores is not a preference — and the
+      // alternative to refusing would be saving in the clear a note the client
+      // asked to encrypt, which is the one outcome that must never happen.
+      // Turning the setting off later does not reach notes already sealed.
+      if (!req.user.encryptedNotesEnabled) {
+        return res.status(403).json({
+          message: "Enable encrypted notes in settings to use this",
+        });
+      }
       // Covers a missing key and a malformed one alike — both mean this note
       // cannot be sealed, and neither should be reported as a server fault.
       const unavailable = encryptionUnavailableReason();
