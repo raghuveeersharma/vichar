@@ -70,6 +70,14 @@ export const AuthProvider = ({ children }) => {
     await api.patch("/auth/password", payload);
   };
 
+  // Account preferences ride on the same `user` object every page already reads,
+  // so flipping one re-renders whatever depends on it — CreatePage picks up the
+  // encrypted-notes toggle with no fetch of its own.
+  const updatePreferences = async (payload) => {
+    const res = await api.patch("/auth/preferences", payload);
+    setUser(res.data.user);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -80,6 +88,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         updateEmail,
         updatePassword,
+        updatePreferences,
       }}
     >
       {children}

@@ -8,8 +8,14 @@ import { isEmptyHtml } from "../libs/html";
 import Button from "../components/Button";
 import FolderSelect from "../components/FolderSelect";
 import { UNFILED } from "../libs/folders";
+import { useAuth } from "../context/auth-context";
 
 const CreatePage = () => {
+  // Opt-in per account, from Settings. The server enforces the same flag on
+  // POST /notes, so this hides a button rather than being the only thing
+  // standing between a request and an encrypted note.
+  const { user } = useAuth();
+  const canEncrypt = Boolean(user?.encryptedNotesEnabled);
   // `?folder=<id>` is how "new note in this folder" arrives from a folder page.
   // Read once as the initial value rather than tracked: the select below owns the
   // choice from here on, and re-reading the URL would overwrite a change the user
@@ -56,6 +62,14 @@ const CreatePage = () => {
           position: "top-center",
           icon: "🚨",
         });
+      } else if (error.response?.status === 403) {
+        // The account setting was turned off elsewhere — in another tab, or on
+        // another device — after this page rendered its button.
+        toast.error(
+          error.response.data?.message ??
+            "Encrypted notes are turned off for this account",
+          { duration: 6000 }
+        );
       } else if (error.response?.status === 503) {
         // The server has no encryption key, so it refused rather than saving the
         // note in the clear. Say so — retrying the same button will not help.
@@ -124,18 +138,20 @@ const CreatePage = () => {
                     onto one line. The encrypted action is the outline variant:
                     it is the deliberate choice, not the default one. */}
                 <div className="card-actions flex-wrap justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline-primary"
-                    icon={LockIcon}
-                    loading={submitting === "encrypted"}
-                    disabled={loading}
-                    onClick={() => createNote({ encrypted: true })}
-                  >
-                    {submitting === "encrypted"
-                      ? "encrypting..."
-                      : "create encrypted note"}
-                  </Button>
+                  {canEncrypt && (
+                    <Button
+                      type="button"
+                      variant="outline-primary"
+                      icon={LockIcon}
+                      loading={submitting === "encrypted"}
+                      disabled={loading}
+                      onClick={() => createNote({ encrypted: true })}
+                    >
+                      {submitting === "encrypted"
+                        ? "encrypting..."
+                        : "create encrypted note"}
+                    </Button>
+                  )}
                   <Button
                     type="submit"
                     variant="primary"

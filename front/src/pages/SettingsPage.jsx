@@ -1,6 +1,6 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { ArrowLeftIcon, KeyRoundIcon, MailIcon } from "lucide-react";
+import { ArrowLeftIcon, KeyRoundIcon, LockIcon, MailIcon } from "lucide-react";
 import { useAuth } from "../context/auth-context";
 import PasswordInput from "../components/PasswordInput";
 import Button from "../components/Button";
@@ -8,7 +8,7 @@ import Button from "../components/Button";
 // Both forms send the current password: the API re-verifies it before changing
 // anything, so a stolen cookie alone cannot take over the account.
 const SettingsPage = () => {
-  const { user, updateEmail, updatePassword } = useAuth();
+  const { user, updateEmail, updatePassword, updatePreferences } = useAuth();
 
   const [emailForm, setEmailForm] = useState({
     email: user?.email || "",
@@ -23,12 +23,37 @@ const SettingsPage = () => {
   });
   const [passwordLoading, setPasswordLoading] = useState(false);
 
+  // The toggle renders straight off the session user rather than mirroring it
+  // into local state: `updatePreferences` replaces that user, so the switch
+  // follows the value the server actually stored instead of a copy that can
+  // drift from it when a save fails.
+  const encryptedNotesEnabled = Boolean(user?.encryptedNotesEnabled);
+  const [preferenceLoading, setPreferenceLoading] = useState(false);
+
   const reportError = (error, fallback) => {
     console.error(fallback + ":", error);
     if (error.response?.status === 429) {
       toast.error("Too many attempts. Please try again later.");
     } else {
       toast.error(error.response?.data?.message || fallback);
+    }
+  };
+
+  // No form and no submit button: a single switch that saves on change is the
+  // whole interaction, and a "save" step next to it would only add a state the
+  // user can leave unsaved.
+  const handelEncryptedNotesToggle = async (e) => {
+    const next = e.target.checked;
+    try {
+      setPreferenceLoading(true);
+      await updatePreferences({ encryptedNotesEnabled: next });
+      toast.success(
+        next ? "Encrypted notes enabled" : "Encrypted notes disabled"
+      );
+    } catch (error) {
+      reportError(error, "Failed to update setting");
+    } finally {
+      setPreferenceLoading(false);
     }
   };
 
@@ -210,6 +235,42 @@ const SettingsPage = () => {
                   </Button>
                 </div>
               </form>
+            </div>
+
+            <div className="mx-6 h-px bg-base-content/10" />
+
+            <div className="card-body">
+              <h2 className="card-title text-xl">
+                <LockIcon className="size-5 text-primary" />
+                Encrypted notes
+              </h2>
+              <p className="text-base-content/80 mb-2">
+                Adds a second button on the new-note page that seals the note
+                before it is stored, so its text is unreadable in the database.
+              </p>
+
+              {/* `justify-start` so the label sits next to the switch instead of
+                  being pushed to the far edge by daisyUI's default label layout,
+                  which reads as two unrelated controls on a wide screen. */}
+              <div className="form-control">
+                <label className="label cursor-pointer justify-start gap-4">
+                  <input
+                    type="checkbox"
+                    className="toggle toggle-primary"
+                    checked={encryptedNotesEnabled}
+                    onChange={handelEncryptedNotesToggle}
+                    disabled={preferenceLoading}
+                  />
+                  <span className="label-text">
+                    Allow me to create encrypted notes
+                  </span>
+                </label>
+              </div>
+
+              <p className="text-sm text-base-content/60">
+                Turning this off only hides the button. Notes you already
+                encrypted stay encrypted and keep opening normally.
+              </p>
             </div>
           </div>
         </div>
