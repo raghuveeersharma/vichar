@@ -51,17 +51,17 @@ server/
     │   ├── noteCrypto.js             # AES-256-GCM seal/open for note bodies (lazy key, `enc:v1:...` envelope)
     │   └── gemini.js                 # lazy @google/genai client, model id, and the shared HTML output schema
     ├── routes/
-    │   ├── authRoutes.js             # POST /signup · /login · /logout · GET /me · PATCH /email · /password (last three guarded)
+    │   ├── authRoutes.js             # POST /signup · /login · /logout · GET /me · PATCH /email · /password · /preferences (last four guarded)
     │   ├── notesRoutes.js            # GET / (?folder=) · POST / · PUT /:id · GET /:id · DELETE /:id
     │   ├── folderRoutes.js           # GET / · POST / · GET /:id · PATCH /:id (rename) · DELETE /:id
     │   └── aiRoutes.js               # POST /grammar · /format
     ├── controllers/
-    │   ├── authControllers.js        # signup, login, logout, me, updateEmail, updatePassword
+    │   ├── authControllers.js        # signup, login, logout, me, updateEmail, updatePassword, updatePreferences
     │   ├── notesControllers.js       # getAllNotes, createNote, getNoteById, updateNoteById, deleteNoteById
     │   ├── folderControllers.js      # getAllFolders, getFolderById, createFolder, updateFolderById, deleteFolderById
     │   └── aiControllers.js          # fixGrammar, formatNote — one Gemini call each, HTML in / HTML out
     ├── modals/                       # "models", misspelled
-    │   ├── user.modal.js             # name/email/password; pre-save bcrypt hash; comparePassword; toPublicJSON
+    │   ├── user.modal.js             # name/email/password/encryptedNotesEnabled; pre-save bcrypt hash; comparePassword; toPublicJSON
     │   ├── folder.modal.js           # name/owner + unique {owner, name} index under a case-insensitive collation
     │   └── note.modal.js             # title/content/isEncrypted/folder/owner + {owner, createdAt} and {owner, folder, createdAt} indexes
     └── middlewear/                   # "middleware", misspelled
@@ -97,7 +97,7 @@ front/
     │   ├── NoteDetailPage.jsx        # GET/PUT/DELETE /notes/:id
     │   ├── LoginPage.jsx             # returns the user to the route ProtectedRoute bounced them from
     │   ├── SignupPage.jsx            # name/email/password
-    │   └── SettingsPage.jsx          # PATCH /auth/email · /auth/password (both re-verify the current password)
+    │   └── SettingsPage.jsx          # PATCH /auth/email · /auth/password (both re-verify the current password) · /auth/preferences
     ├── components/
     │   ├── RichTextEditor.jsx        # TipTap editor + toolbar + the two AI buttons
     │   ├── FolderList.jsx            # home-page folder strip; owns its own fetch + create/rename/delete
@@ -134,8 +134,9 @@ Routes are declared in `App.jsx` as two guarded groups: `/login` and `/signup` b
 - **Deleting a folder is refused while it still holds notes** (409, with the count in the message), so a folder delete can never take writing with it. The count is checked before the delete rather than repaired after, keeping it one decision with no half-applied state.
 - **Note reads populate `folder` but the API still returns an id.** `toClientNote` flattens the populated document into `folder` (id) plus `folderName` (string). Returning the populated object instead would break saves: the client echoes what it read into the next `PUT`, where `folder` must be an id.
 
-**Encryption is opt-in per note, applied at the storage boundary only.** `CreatePage` has two submit buttons; the encrypted one posts `encrypted: true`, and [notesControllers.js](server/src/controllers/notesControllers.js) seals `content` with AES-256-GCM via [libs/noteCrypto.js](server/src/libs/noteCrypto.js) before `Note.create`, storing the `enc:v1:<iv>:<tag>:<ciphertext>` envelope in the same plain `String` field. Four rules hold this together:
+**Encryption is opt-in per note, applied at the storage boundary only.** `CreatePage` has two submit buttons; the encrypted one posts `encrypted: true`, and [notesControllers.js](server/src/controllers/notesControllers.js) seals `content` with AES-256-GCM via [libs/noteCrypto.js](server/src/libs/noteCrypto.js) before `Note.create`, storing the `enc:v1:<iv>:<tag>:<ciphertext>` envelope in the same plain `String` field. Five rules hold this together:
 
+- **The second button only exists for accounts that asked for it.** `encryptedNotesEnabled` on the user (default `false`, so existing accounts start with it off) is toggled from `SettingsPage` through `PATCH /auth/preferences`, rides along on `toPublicJSON`, and gates the button in `CreatePage`. `createNote` re-checks it and answers **403** — hiding a button is not enforcement, and the alternative to refusing would be storing in the clear a note the client asked to encrypt. The flag governs *creating* only: notes already sealed keep decrypting on read and survive edits after the setting is turned off, because every other code path branches on the note's own `isEncrypted`, never on the user's preference. Do not wire it into a read path.
 - **Decryption is transparent, so encryption never reaches the API shape.** Every read opens the body before responding, which is why `NoteCard`, `RichTextEditor` and `/api/ai` needed no changes — they only ever see plaintext HTML. Nothing crypto-related exists on the client; the lock icon and badge are driven purely by the `isEncrypted` boolean.
 - **`isEncrypted` on the document is the only authority.** Controllers branch on the stored flag, never on sniffing `content` for the prefix, and `updateNoteById` reads it back before saving so an encrypted note stays encrypted whatever the client sends — otherwise an ordinary edit would silently rewrite the body as plaintext. There is deliberately no way to toggle an existing note; add one only by re-encrypting through the same helper.
 - **The owner id is the GCM additional authenticated data.** That binds a blob to one user, so a ciphertext moved between rows fails its tag check instead of decrypting. It also means the AAD passed to `decryptContent` must be the same `req.user._id` used to encrypt — this is a second line of defence behind the `owner` query filter, not a replacement for it.
@@ -149,11 +150,13 @@ Read the key lazily (as `noteCrypto.js` does), never at module top level: `index
 
 **Two places report an AI refusal, and both return HTTP 200.** `response.promptFeedback.blockReason` covers an input the filters rejected; `candidates[0].finishReason` covers the output — anything other than `STOP` means the reply is unusable. Check both before touching `response.text`, or a blocked request surfaces as a JSON parse error. The controller maps `MAX_TOKENS` → 413 and every other non-`STOP` reason → 422.
 
-**API surface.** `/api/auth` (public, except `GET /me`), `/api/notes` and `/api/folders` (fully guarded), and `/api/ai` (guarded + rate-limited). The guard is mounted at the router level in [index.js](server/src/index.js) — `app.use("/api/notes", protect, router)` — so every note route is protected by construction and a newly added route cannot forget it.
+**API surface.** `/api/auth` (public, except `GET /me`, `PATCH /email`, `PATCH /password` and `PATCH /preferences`), `/api/notes` and `/api/folders` (fully guarded), and `/api/ai` (guarded + rate-limited). The guard is mounted at the router level in [index.js](server/src/index.js) — `app.use("/api/notes", protect, router)` — so every note route is protected by construction and a newly added route cannot forget it.
 
 **Tenant isolation lives in the query, not in a check.** Every handler in [notesControllers.js](server/src/controllers/notesControllers.js) filters on `owner: req.user._id` — `findOne({ _id: id, owner })`, `findOneAndUpdate`, `findOneAndDelete` — rather than fetching by id and then comparing ownership. Keep that shape: a bare `findById`/`findByIdAndUpdate` in this file is a cross-tenant data leak. Another user's note returns **404, not 403**, so responses never confirm that an id exists.
 
 **Auth flow.** Passwords are hashed by a `pre("save")` hook on the user schema, so assigning `user.password = plaintext` and saving is always correct — never hash at the call site or you will double-hash. `password` is `select: false`, so `login` must ask for it explicitly with `.select("+password")`. Responses go through `toPublicJSON()`, which is the only thing that should ever be sent to the client. Login answers with one message for both unknown email and wrong password, to avoid disclosing which emails are registered.
+
+`updateEmail` and `updatePassword` both re-verify the current password, so a stolen cookie alone cannot take over the account; `updatePreferences` deliberately does not, because it changes nothing about who can get in. It is also the one handler that writes through `findByIdAndUpdate` rather than mutating `req.user` and saving: `protect` loads the user *without* `password`, and calling `.save()` on a document whose `required` field was never selected depends on Mongoose's unselected-path validation rules. A targeted `$set` sidesteps that question. Any new preference belongs on this same endpoint and in `toPublicJSON` — the SPA reads every preference off the session user it already has, so adding one costs no extra request.
 
 **The JWT is an httpOnly cookie, never touched by JS.** [libs/token.js](server/src/libs/token.js) owns signing, verification, and all cookie flags — change cookie behaviour there, not in controllers. Consequences to keep in mind: the server needs `cookieParser` before `protect`, `cors` needs `credentials: true` with an exact origin, and the axios instance needs `withCredentials: true`. Because the token is unreadable from the frontend, the SPA learns its session by calling `GET /auth/me` on boot — there is no client-side token decoding.
 
