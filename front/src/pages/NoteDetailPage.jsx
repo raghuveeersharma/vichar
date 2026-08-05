@@ -1,10 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import api from "../libs/axios";
-import { ArrowLeftIcon, LoaderIcon, LockIcon, Trash2 } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  CheckIcon,
+  CopyIcon,
+  LoaderIcon,
+  LockIcon,
+  Trash2,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import RichTextEditor from "../components/RichTextEditor";
-import { isEmptyHtml, toEditorHtml } from "../libs/html";
+import { htmlToText, isEmptyHtml, toEditorHtml } from "../libs/html";
 import Button from "../components/Button";
 import FolderSelect from "../components/FolderSelect";
 import { UNFILED } from "../libs/folders";
@@ -13,6 +20,7 @@ const NoteDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [data, setData] = useState({
     title: "",
     content: "",
@@ -57,6 +65,44 @@ const NoteDetailPage = () => {
     };
     fetchNote();
   }, [id, navigate]);
+
+  // Flip the button back to "Copy" on its own so there is nothing to reset by
+  // hand; the cleanup covers navigating away mid-timer.
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
+  const handelCopy = async () => {
+    // Content is TipTap HTML. Write both flavours so a rich target (a doc, an
+    // email) keeps the formatting while a plain one (an editor, a terminal)
+    // gets readable text instead of markup. `ClipboardItem` is missing on
+    // older Safari, so fall back to text only.
+    const html = data.content ?? "";
+    const text = htmlToText(html);
+    if (!text.trim()) {
+      toast.error("Nothing to copy");
+      return;
+    }
+    try {
+      if (typeof ClipboardItem === "function" && navigator.clipboard?.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": new Blob([html], { type: "text/html" }),
+            "text/plain": new Blob([text], { type: "text/plain" }),
+          }),
+        ]);
+      } else {
+        await navigator.clipboard.writeText(text);
+      }
+      setCopied(true);
+      toast.success("Content copied");
+    } catch (error) {
+      console.error("Error copying note:", error);
+      toast.error("Failed to copy content");
+    }
+  };
 
   const handelDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this note?")) return;
@@ -111,13 +157,23 @@ const NoteDetailPage = () => {
             <Button to="/" variant="ghost" icon={ArrowLeftIcon}>
               Back to Notes
             </Button>
-            <Button
-              variant="outline-error"
-              icon={Trash2}
-              onClick={handelDelete}
-            >
-              Delete Note
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="ghost"
+                icon={copied ? CheckIcon : CopyIcon}
+                iconClassName={copied ? "text-success" : ""}
+                onClick={handelCopy}
+              >
+                {copied ? "Copied" : "Copy Content"}
+              </Button>
+              <Button
+                variant="outline-error"
+                icon={Trash2}
+                onClick={handelDelete}
+              >
+                Delete Note
+              </Button>
+            </div>
           </div>
           <div className="glass-panel-strong card mt-4">
             <div className="card-body">
