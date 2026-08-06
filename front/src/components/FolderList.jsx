@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FolderPlusIcon } from "lucide-react";
 import toast from "react-hot-toast";
 import Button from "./Button";
@@ -11,6 +11,9 @@ import {
   renameFolder,
   reportFolderError,
 } from "../libs/folders";
+import useCachedQuery from "../hooks/useCachedQuery";
+import { FOLDERS } from "../libs/cache";
+import useOnline from "../hooks/useOnline";
 
 // The folder strip above the note grid on the home page. Self-contained: it owns
 // its own fetch and all four mutations, so Home does not thread folder state
@@ -18,45 +21,56 @@ import {
 // folder cannot change which notes exist, because the API refuses to delete a
 // folder that still holds any.
 const FolderList = () => {
-  const [folders, setFolders] = useState([]);
-  const [unfiledCount, setUnfiledCount] = useState(0);
-  // Starts true so the "no folders yet" line does not flash before the first
-  // fetch resolves — same reasoning as Home's notes loader.
-  const [loading, setLoading] = useState(true);
-  // null = closed. Otherwise { mode: "create" } or { mode: "rename", folder }.
-  const [dialog, setDialog] = useState(null);
-
-  const load = async () => {
-    try {
-      const data = await fetchFolders();
-      setFolders(data.folders);
-      setUnfiledCount(data.unfiledCount);
-    } catch (error) {
+  // Shares one cached copy with FolderSelect and FolderPage, so opening the
+  // create form right after the home page loaded reuses this listing instead of
+  // asking for it again. A longer stale window than the note lists: folder names
+  // change far less often than note bodies.
+  const { data, loading, setData } = useCachedQuery(FOLDERS, fetchFolders, {
+    staleTime: 60_000,
+    onError: (error) => {
       // A 429 here is already reported by Home's own banner for the same page
       // load, so this stays quiet rather than stacking a toast on top of it.
       if (error.response?.status !== 429) {
         reportFolderError(error, "Failed to load folders");
       }
-    } finally {
-      setLoading(false);
-    }
+    },
+  });
+  const online = useOnline();
+  // null = closed. Otherwise { mode: "create" } or { mode: "rename", folder }.
+  const [dialog, setDialog] = useState(null);
+
+  const folders = data?.folders ?? [];
+  const unfiledCount = data?.unfiledCount ?? 0;
+
+  // Patch the cached payload in place — the cache is what the next page load
+  // reads, so a rename that only touched component state would be undone by a
+  // reload inside the stale window.
+  const patchFolders = (update) =>
+    setData((prev) => ({
+      ...(prev ?? { unfiledCount: 0 }),
+      folders: update(prev?.folders ?? []).sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+      ),
+    }));
+
+  // Folder writes are online-only, unlike note writes. An offline create would
+  // have to invent a local id, and notes filed under it would then all need
+  // rewriting when the server issued the real one — a whole second consistency
+  // problem for the rarer action. Saying so up front beats a request that fails.
+  const requireConnection = () => {
+    if (online) return true;
+    toast.error("Folders can only be changed while you're online");
+    return false;
   };
 
-  useEffect(() => {
-    load();
-  }, []);
-
   const handleCreate = async (name) => {
+    if (!requireConnection()) return;
     try {
       const folder = await createFolder(name);
       // Insert in place rather than refetching: the list is name-sorted, and the
       // new folder is empty by construction, so the client already knows enough
       // to place it correctly.
-      setFolders((prev) =>
-        [...prev, { ...folder, noteCount: 0 }].sort((a, b) =>
-          a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
-        )
-      );
+      patchFolders((prev) => [...prev, { ...folder, noteCount: 0 }]);
       setDialog(null);
       toast.success("Folder created");
     } catch (error) {
@@ -67,15 +81,12 @@ const FolderList = () => {
   };
 
   const handleRename = async (name) => {
+    if (!requireConnection()) return;
     const { _id } = dialog.folder;
     try {
       const updated = await renameFolder(_id, name);
-      setFolders((prev) =>
-        prev
-          .map((f) => (f._id === _id ? { ...f, name: updated.name } : f))
-          .sort((a, b) =>
-            a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
-          )
+      patchFolders((prev) =>
+        prev.map((f) => (f._id === _id ? { ...f, name: updated.name } : f))
       );
       setDialog(null);
       toast.success("Folder renamed");
@@ -85,12 +96,13 @@ const FolderList = () => {
   };
 
   const handleDelete = async (folder) => {
+    if (!requireConnection()) return;
     // Deleting a folder is refused server-side while it still holds notes, so
     // this confirm is about the folder itself and nothing else can be lost here.
     if (!window.confirm(`Delete the folder "${folder.name}"?`)) return;
     try {
       await deleteFolder(folder._id);
-      setFolders((prev) => prev.filter((f) => f._id !== folder._id));
+      patchFolders((prev) => prev.filter((f) => f._id !== folder._id));
       toast.success("Folder deleted");
     } catch (error) {
       // The 409 path lands here, and its message names how many notes are in the
@@ -99,9 +111,11 @@ const FolderList = () => {
     }
   };
 
-  // Nothing to show before the first fetch settles. The heading is held back too
-  // rather than rendering above an empty row, which would jump as folders arrive.
-  if (loading) return null;
+  // Nothing to show before there is an answer — from cache or from the network.
+  // The heading is held back too rather than rendering above an empty row, which
+  // would jump as folders arrive. Offline with nothing cached lands here as well:
+  // Home's own notice already explains why the page is bare.
+  if (loading || !data) return null;
 
   const hasFolders = folders.length > 0;
 
