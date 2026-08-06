@@ -16,13 +16,17 @@ import NoteCard from "../components/NoteCard";
 import RateLimitUI from "../components/RateLimitUI";
 import FolderNameDialog from "../components/FolderNameDialog";
 import Button from "../components/Button";
+import OfflineNotice from "../components/OfflineNotice";
 import {
   UNFILED,
   deleteFolder,
-  fetchFolder,
+  fetchFolders,
   renameFolder,
   reportFolderError,
 } from "../libs/folders";
+import useCachedQuery from "../hooks/useCachedQuery";
+import useOnline from "../hooks/useOnline";
+import { FOLDERS, notesKey } from "../libs/cache";
 
 // One folder's notes. `/folder/unfiled` is the same page for notes that belong to
 // no folder: it has a name and a note list like any other view, but nothing to
@@ -30,54 +34,90 @@ import {
 const FolderPage = () => {
   const { folderId } = useParams();
   const navigate = useNavigate();
+  const online = useOnline();
   const isUnfiled = folderId === UNFILED;
 
-  const [folder, setFolder] = useState(null);
-  const [notes, setNotes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isRateLimit, setIsRateLimit] = useState(false);
   const [renaming, setRenaming] = useState(false);
 
-  useEffect(() => {
-    // Reset on navigation between folders, or the previous folder's notes show
-    // under the new folder's name until the fetch lands.
-    setLoading(true);
-    setNotes([]);
-    setFolder(null);
+  // The name and note count come out of the shared `folders` listing rather than
+  // `GET /folders/:id`. It is the same data, it is already cached by the home page
+  // this link was clicked from, and it is the only version of this page's heading
+  // that can be shown offline.
+  const {
+    data: folderData,
+    loading: foldersLoading,
+    setData: setFolderData,
+  } = useCachedQuery(FOLDERS, fetchFolders, {
+    staleTime: 60_000,
+    enabled: !isUnfiled,
+    onError: (error, { cached }) => {
+      if (error.response?.status === 429 || cached) return;
+      reportFolderError(error, "Failed to load folder");
+    },
+  });
 
-    const load = async () => {
-      try {
-        // The folder id doubles as the `?folder=` value, including "unfiled".
-        // Both requests go out together — the note list does not depend on the
-        // folder document, only on its id, which the route already carries.
-        const [meta, noteRes] = await Promise.all([
-          isUnfiled ? Promise.resolve(null) : fetchFolder(folderId),
-          api.get(`/notes?folder=${folderId}`),
-        ]);
-        setFolder(meta);
-        setNotes(noteRes.data);
-      } catch (error) {
+  // The folder id doubles as the `?folder=` value, including "unfiled", so the
+  // route param is forwarded to both the request and the cache key untranslated.
+  const {
+    data: noteData,
+    loading: notesLoading,
+    error: notesError,
+    offline,
+    setData: setNotes,
+  } = useCachedQuery(
+    notesKey(folderId),
+    () => api.get(`/notes?folder=${folderId}`).then((res) => res.data),
+    {
+      onError: (error, { cached }) => {
         console.error("Error loading folder:", error);
-        if (error.response?.status === 429) {
-          setIsRateLimit(true);
-        } else if (error.response?.status === 404) {
+        if (error.response?.status === 429) return;
+        if (error.response?.status === 404) {
           // Gone, or it was never this user's — the API does not distinguish.
           toast.error("Folder not found");
           navigate("/", { replace: true });
-        } else if (error.response?.status !== 401) {
-          toast.error("Failed to load folder");
+          return;
         }
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [folderId, isUnfiled, navigate]);
+        if (error.response?.status === 401 || cached) return;
+        if (error.response) toast.error("Failed to load folder");
+      },
+    }
+  );
+
+  const notes = noteData ?? [];
+  const folders = folderData?.folders ?? null;
+  const folder = folders?.find((f) => f._id === folderId) ?? null;
+  const isRateLimit = notesError?.response?.status === 429;
+  const loading = notesLoading || (!isUnfiled && foldersLoading);
+
+  // A folder that is not in the listing is gone — the same conclusion the old
+  // `GET /folders/:id` 404 reached. Only trusted once there *is* a listing: with
+  // nothing cached and no connection, absence proves nothing.
+  useEffect(() => {
+    if (isUnfiled || !folders || folder) return;
+    toast.error("Folder not found");
+    navigate("/", { replace: true });
+  }, [isUnfiled, folders, folder, navigate]);
+
+  const patchFolders = (update) =>
+    setFolderData((prev) => ({
+      ...(prev ?? { unfiledCount: 0 }),
+      folders: update(prev?.folders ?? []),
+    }));
+
+  // Folder writes need the network — see the same guard in FolderList.
+  const requireConnection = () => {
+    if (online) return true;
+    toast.error("Folders can only be changed while you're online");
+    return false;
+  };
 
   const handleRename = async (name) => {
+    if (!requireConnection()) return;
     try {
       const updated = await renameFolder(folderId, name);
-      setFolder((prev) => ({ ...prev, name: updated.name }));
+      patchFolders((prev) =>
+        prev.map((f) => (f._id === folderId ? { ...f, name: updated.name } : f))
+      );
       setRenaming(false);
       toast.success("Folder renamed");
     } catch (error) {
@@ -86,9 +126,11 @@ const FolderPage = () => {
   };
 
   const handleDelete = async () => {
+    if (!requireConnection()) return;
     if (!window.confirm(`Delete the folder "${folder.name}"?`)) return;
     try {
       await deleteFolder(folderId);
+      patchFolders((prev) => prev.filter((f) => f._id !== folderId));
       toast.success("Folder deleted");
       navigate("/", { replace: true });
     } catch (error) {
@@ -109,6 +151,9 @@ const FolderPage = () => {
 
   const Icon = isUnfiled ? InboxIcon : FolderIcon;
   const title = isUnfiled ? "Unfiled" : folder?.name;
+  // Offline and this folder's notes were never stored — distinct from an empty
+  // folder, which is a fact rather than a gap.
+  const isOfflineEmpty = offline && noteData == null;
 
   return (
     <div className="min-h-screen">
@@ -131,9 +176,11 @@ const FolderPage = () => {
               <h1 className="break-words text-2xl font-bold sm:text-3xl">
                 {title}
               </h1>
-              <p className="text-sm text-base-content/70">
-                {notes.length} {notes.length === 1 ? "note" : "notes"}
-              </p>
+              {!isOfflineEmpty && (
+                <p className="text-sm text-base-content/70">
+                  {notes.length} {notes.length === 1 ? "note" : "notes"}
+                </p>
+              )}
             </div>
           </div>
           {/* Unfiled is a view, not a folder, so it has no rename or delete. It
@@ -176,7 +223,11 @@ const FolderPage = () => {
           )}
         </div>
 
-        {!isRateLimit && notes.length === 0 && (
+        {isOfflineEmpty && (
+          <OfflineNotice message="This folder's notes have not been saved for offline use on this device yet." />
+        )}
+
+        {!isRateLimit && !isOfflineEmpty && notes.length === 0 && (
           <div className="glass-panel-strong mx-auto mt-8 flex max-w-md flex-col items-center justify-center space-y-6 px-6 py-12 text-center sm:px-10 sm:py-16">
             <div className="rounded-full bg-primary/10 p-8">
               <NotebookIcon className="size-10 text-primary" />

@@ -1,22 +1,37 @@
-import { FolderIcon, LockIcon, PenBoxIcon, Trash2Icon } from "lucide-react";
+import {
+  CloudOffIcon,
+  FolderIcon,
+  LockIcon,
+  PenBoxIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { Link } from "react-router";
 import { formatDate } from "../libs/utils";
 import { htmlToText } from "../libs/html";
-import api from "../libs/axios";
+import { deleteNote } from "../libs/notes";
 import toast from "react-hot-toast";
 import Button from "./Button";
+import { useAuth } from "../context/auth-context";
 
 // `showFolder` is off inside a folder page, where every card in the grid is in the
 // same folder and the label would repeat the heading on every tile.
 const NoteCard = ({ note, setNotes, showFolder = true }) => {
+  const { user } = useAuth();
+
   const handelDelete = async (e, id) => {
     e.preventDefault();
     if (!window.confirm("Are you sure you want to delete this note?")) return;
     try {
-      const res = await api.delete(`/notes/${id}`);
-      console.log(res.data);
+      const { queued } = await deleteNote(user?._id, id);
+      // The delete also removes the note from every cached listing, but this grid
+      // is updated by hand as well: it is the list the user is looking at, and it
+      // should not wait on a round trip to IndexedDB to reflect the click.
       setNotes((prev) => prev.filter((note) => note._id !== id));
-      toast.success("Note deleted successfully");
+      toast.success(
+        queued
+          ? "Deleted on this device — it will sync when you're back online"
+          : "Note deleted successfully"
+      );
     } catch (error) {
       console.error("Error deleting note:", error);
       if (error.response && error.response.status === 429) {
@@ -68,17 +83,36 @@ const NoteCard = ({ note, setNotes, showFolder = true }) => {
             `mt-auto` instead. */}
         {/* `decryptError` means the server has the ciphertext but could not open
             it (key rotated or lost). It sends a placeholder in place of the
-            body, so flag it as a fault rather than passing it off as content. */}
+            body, so flag it as a fault rather than passing it off as content.
+            `contentCached: false` is the other absent body: an encrypted note read
+            back from the offline cache, whose plaintext is deliberately never
+            written to disk. Neither is content, so neither is shown as content. */}
         <p
           className={`line-clamp-3 grow-0 ${
-            note.decryptError ? "italic text-error/80" : "text-base-content/80"
-          }`}
+            note.decryptError || note.contentCached === false
+              ? "italic text-base-content/50"
+              : "text-base-content/80"
+          } ${note.decryptError ? "text-error/80" : ""}`}
         >
-          {htmlToText(note.content)}
+          {note.contentCached === false
+            ? "Locked while offline — reconnect to read this note."
+            : htmlToText(note.content)}
         </p>
         <div className="card-actions mt-auto items-center justify-between pt-4">
-          <span className="text-sm text-base-content/70">
+          <span className="flex items-center gap-2 text-sm text-base-content/70">
             {formatDate(new Date(note.createdAt))}
+            {/* Written or edited offline and not yet sent. The badge is stored with
+                the note rather than derived from the queue, so it survives a
+                reload the same way the note itself does. */}
+            {note.pending && (
+              <span
+                className="badge badge-ghost badge-sm gap-1 font-normal"
+                title="Waiting to sync"
+              >
+                <CloudOffIcon className="size-3" />
+                unsynced
+              </span>
+            )}
           </span>
           <div className="flex items-center gap-1">
             <PenBoxIcon className="size-4 text-info/70" />

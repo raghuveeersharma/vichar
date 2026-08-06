@@ -55,10 +55,14 @@ export default defineConfig({
         // the precached shell — the same job vercel.json does on the network.
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
-        // Nothing from the API is cached. Note bodies can be encrypted and
-        // every response is scoped to the signed-in user, so a stale copy in
-        // the Cache API would outlive the session cookie that authorised it.
-        // The shell works offline; the data deliberately does not.
+        // Nothing from the API is cached *here*. Note bodies can be encrypted and
+        // every response is scoped to the signed-in user, so a stale copy in the
+        // Cache API would outlive the session cookie that authorised it and be
+        // replayed to whoever opens the tab next. Offline reads live in app state
+        // instead — libs/cache.js keeps them in IndexedDB, stamped with the owner
+        // they were fetched for and destroyed on logout. This worker precaches the
+        // shell and nothing else; do not add a runtimeCaching rule for
+        // VITE_SERVER_URL.
         cleanupOutdatedCaches: true,
       },
     }),

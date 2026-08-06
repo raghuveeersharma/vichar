@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { LoaderIcon } from "lucide-react";
 import RateLimitUI from "../components/RateLimitUI";
 import api from "../libs/axios";
@@ -6,35 +5,38 @@ import { toast } from "react-hot-toast";
 import NoteCard from "../components/NoteCard";
 import NotesNotFound from "../components/NotesNotFound";
 import FolderList from "../components/FolderList";
+import OfflineNotice from "../components/OfflineNotice";
+import useCachedQuery from "../hooks/useCachedQuery";
+import { NOTES_ALL } from "../libs/cache";
 
 const Home = () => {
-  const [isRateLimit, setIsRateLimit] = useState(false);
-  const [notes, setNotes] = useState([]);
-  // Starts true so the "no notes yet" empty state does not flash before the
-  // first fetch resolves.
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    const fetchNotes = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get("/notes");
-        setNotes(res.data);
-        console.log(res.data);
-      } catch (error) {
-        console.error("Error fetching notes:", error);
-        if (error.response && error.response.status === 429) {
-          setIsRateLimit(true);
-        } else if (error.response?.status !== 401) {
-          // 401 is handled globally by the axios interceptor, which signs the
-          // user out and lets ProtectedRoute redirect to /login.
-          toast.error("Failed to fetch notes");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchNotes();
-  }, []);
+  // Cache-first: a cached listing renders immediately and is only refreshed from
+  // the network once it falls outside the stale window, so moving between the home
+  // page and a note no longer costs a request each way. `setNotes` still writes
+  // through to the cache, which is what lets NoteCard splice a deleted note out.
+  const {
+    data,
+    loading,
+    error,
+    offline,
+    setData: setNotes,
+  } = useCachedQuery(NOTES_ALL, () => api.get("/notes").then((res) => res.data), {
+    onError: (err, { cached }) => {
+      console.error("Error fetching notes:", err);
+      // 429 has its own banner below, 401 is handled globally by the axios
+      // interceptor, and a failed refresh behind a cached list is not worth
+      // interrupting anyone over — the notes are on screen.
+      if (err.response?.status === 429) return;
+      if (err.response?.status === 401 || cached) return;
+      if (err.response) toast.error("Failed to fetch notes");
+    },
+  });
+
+  const notes = data ?? [];
+  const isRateLimit = error?.response?.status === 429;
+  // Offline with nothing stored: there is no listing to show and no way to get
+  // one, which is a different situation from "you have no notes yet".
+  const isOfflineEmpty = offline && data == null;
 
   return (
     <div>
@@ -50,7 +52,12 @@ const Home = () => {
             <span>Loading...</span>
           </div>
         )}
-        {!isRateLimit && notes.length === 0 && !loading && <NotesNotFound />}
+        {isOfflineEmpty && !loading && (
+          <OfflineNotice message="Your notes have not been saved for offline use on this device yet. Open the app once with a connection and they will be here next time." />
+        )}
+        {!isRateLimit && !isOfflineEmpty && notes.length === 0 && !loading && (
+          <NotesNotFound />
+        )}
         {notes.length > 0 && !isRateLimit && (
           <>
             {/* "All notes", not "Notes": this grid is every note the user owns,
