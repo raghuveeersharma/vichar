@@ -1,7 +1,7 @@
 import { ArrowLeftIcon, LockIcon } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
-import api from "../libs/axios";
+import { createNote as saveNote } from "../libs/notes";
 import { useNavigate, useSearchParams } from "react-router";
 import RichTextEditor from "../components/RichTextEditor";
 import { isEmptyHtml } from "../libs/html";
@@ -44,7 +44,9 @@ const CreatePage = () => {
     }
     try {
       setSubmitting(encrypted ? "encrypted" : "plain");
-      await api.post("/notes", { ...data, encrypted, folder });
+      // Writes the new note into the cached listings on the way through, so the
+      // page it navigates to below already has it and does not refetch.
+      await saveNote(user._id, { title, content, folder, encrypted });
       toast.success(
         encrypted
           ? "Encrypted note created successfully"

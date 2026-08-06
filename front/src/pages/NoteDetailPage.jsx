@@ -17,12 +17,16 @@ import Button from "../components/Button";
 import FolderSelect from "../components/FolderSelect";
 import OfflineNotice from "../components/OfflineNotice";
 import { UNFILED } from "../libs/folders";
+import { deleteNote, updateNote } from "../libs/notes";
 import useCachedQuery from "../hooks/useCachedQuery";
 import { noteKey } from "../libs/cache";
+import { useAuth } from "../context/auth-context";
 
 const NoteDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuth();
+  const owner = user?._id;
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -125,7 +129,7 @@ const NoteDetailPage = () => {
   const handelDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this note?")) return;
     try {
-      await api.delete(`/notes/${id}`);
+      await deleteNote(owner, id);
       toast.success("Note deleted successfully");
       navigate("/");
     } catch (error) {
@@ -144,7 +148,10 @@ const NoteDetailPage = () => {
     }
     setSaving(true);
     try {
-      await api.put(`/notes/${id}`, data);
+      const { title, content, folder } = data;
+      // Patches the saved note into every cached listing, so the home page this
+      // navigates to shows the edit without asking for the list again.
+      await updateNote(owner, id, { title, content, folder });
       toast.success("Note updated successfully");
       navigate("/"); // only on success, so a failed save keeps the user's edits
     } catch (error) {

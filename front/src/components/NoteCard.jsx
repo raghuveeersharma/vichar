@@ -2,19 +2,24 @@ import { FolderIcon, LockIcon, PenBoxIcon, Trash2Icon } from "lucide-react";
 import { Link } from "react-router";
 import { formatDate } from "../libs/utils";
 import { htmlToText } from "../libs/html";
-import api from "../libs/axios";
+import { deleteNote } from "../libs/notes";
 import toast from "react-hot-toast";
 import Button from "./Button";
+import { useAuth } from "../context/auth-context";
 
 // `showFolder` is off inside a folder page, where every card in the grid is in the
 // same folder and the label would repeat the heading on every tile.
 const NoteCard = ({ note, setNotes, showFolder = true }) => {
+  const { user } = useAuth();
+
   const handelDelete = async (e, id) => {
     e.preventDefault();
     if (!window.confirm("Are you sure you want to delete this note?")) return;
     try {
-      const res = await api.delete(`/notes/${id}`);
-      console.log(res.data);
+      await deleteNote(user?._id, id);
+      // The delete also removes the note from every cached listing, but this grid
+      // is updated by hand as well: it is the list the user is looking at, and it
+      // should not wait on a round trip to IndexedDB to reflect the click.
       setNotes((prev) => prev.filter((note) => note._id !== id));
       toast.success("Note deleted successfully");
     } catch (error) {
