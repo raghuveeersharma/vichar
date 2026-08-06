@@ -1,7 +1,7 @@
 import { ArrowLeftIcon, LockIcon } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { createNote as saveNote } from "../libs/notes";
+import { createNote as saveNote, isOfflineRefusal } from "../libs/notes";
 import { useNavigate, useSearchParams } from "react-router";
 import RichTextEditor from "../components/RichTextEditor";
 import { isEmptyHtml } from "../libs/html";
@@ -45,12 +45,21 @@ const CreatePage = () => {
     try {
       setSubmitting(encrypted ? "encrypted" : "plain");
       // Writes the new note into the cached listings on the way through, so the
-      // page it navigates to below already has it and does not refetch.
-      await saveNote(user._id, { title, content, folder, encrypted });
+      // page it navigates to below already has it and does not refetch. With no
+      // connection it is queued instead and sent on reconnect — `queued` says
+      // which happened, because "saved" means something different in each case.
+      const { queued } = await saveNote(user._id, {
+        title,
+        content,
+        folder,
+        encrypted,
+      });
       toast.success(
-        encrypted
-          ? "Encrypted note created successfully"
-          : "Note created successfully"
+        queued
+          ? "Saved on this device — it will sync when you're back online"
+          : encrypted
+            ? "Encrypted note created successfully"
+            : "Note created successfully"
       );
       // Back to the folder the note went into, so a note created from a folder
       // page lands somewhere it is actually visible. Unfiled notes go home, where
@@ -58,7 +67,11 @@ const CreatePage = () => {
       navigate(folder === UNFILED ? "/" : `/folder/${folder}`);
     } catch (error) {
       console.error("Error creating note:", error);
-      if (error.response && error.response.status === 429) {
+      if (isOfflineRefusal(error)) {
+        // Nothing was attempted: an encrypted note needs the server's key, so it
+        // cannot be queued without holding the plaintext on disk in the meantime.
+        toast.error(error.message, { duration: 6000 });
+      } else if (error.response && error.response.status === 429) {
         toast.error("Slow down, you are creating too many requests.", {
           duration: 5000,
           position: "top-center",

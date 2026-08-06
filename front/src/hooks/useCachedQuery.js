@@ -42,7 +42,15 @@ const EMPTY = {
  * `offline`, `stale`, `setData` for optimistic edits, and `refetch`.
  */
 export default function useCachedQuery(key, fetcher, options = {}) {
-  const { staleTime = DEFAULT_STALE_TIME, enabled = true, onError } = options;
+  const {
+    staleTime = DEFAULT_STALE_TIME,
+    enabled = true,
+    // For a resource the API cannot be asked about at all — a note that only
+    // exists in the offline queue, whose id the server has never issued. The
+    // cached copy is the whole truth, so requesting it could only 404.
+    cacheOnly = false,
+    onError,
+  } = options;
   const { user } = useAuth();
   const owner = user?._id ?? null;
   const online = useOnline();
@@ -85,7 +93,7 @@ export default function useCachedQuery(key, fetcher, options = {}) {
       // the decision is made against the connection as it is right now, not as it
       // was when this render started.
       const offline = navigator.onLine === false;
-      const skipNetwork = Boolean(fresh) || offline;
+      const skipNetwork = Boolean(fresh) || offline || cacheOnly;
 
       setState((prev) => ({
         data: cached ? cached.data : prev.data,
@@ -133,7 +141,7 @@ export default function useCachedQuery(key, fetcher, options = {}) {
     };
     // `online` is a dependency on purpose: regaining a connection re-runs this,
     // which is what makes a page that opened from cache fill itself in.
-  }, [owner, key, enabled, staleTime, online, tick]);
+  }, [owner, key, enabled, staleTime, cacheOnly, online, tick]);
 
   // The single place anything is written back, so a fetch, a cache read and an
   // optimistic `setData` all persist the same way. The stamp travels with the

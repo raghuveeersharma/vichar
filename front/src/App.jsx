@@ -10,11 +10,16 @@ import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import GuestRoute from "./components/GuestRoute";
 import AppBackground from "./components/AppBackground";
+import SyncStatus from "./components/SyncStatus";
 const App = () => {
   return (
     <div className="min-h-screen">
       <AppBackground />
       <Navbar />
+      {/* Above the routes, not inside a page: a reconnect has to be noticed
+          wherever the user is, and this is what sends the offline queue. In the
+          normal flow — online, nothing queued — it renders nothing. */}
+      <SyncStatus />
       <Routes>
         {/* Signed out only */}
         <Route element={<GuestRoute />}>

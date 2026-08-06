@@ -17,9 +17,10 @@ import Button from "../components/Button";
 import FolderSelect from "../components/FolderSelect";
 import OfflineNotice from "../components/OfflineNotice";
 import { UNFILED } from "../libs/folders";
-import { deleteNote, updateNote } from "../libs/notes";
+import { deleteNote, isOfflineRefusal, updateNote } from "../libs/notes";
 import useCachedQuery from "../hooks/useCachedQuery";
 import { noteKey } from "../libs/cache";
+import { isLocalId } from "../libs/outbox";
 import { useAuth } from "../context/auth-context";
 
 const NoteDetailPage = () => {
@@ -42,6 +43,9 @@ const NoteDetailPage = () => {
     noteKey(id),
     () => api.get(`/notes/${id}`).then((res) => res.data),
     {
+      // A note still sitting in the offline queue has no server id, so asking for
+      // it could only fail. Its cached copy is the only copy there is.
+      cacheOnly: isLocalId(id),
       onError: (error, { cached }) => {
         console.error("Error fetching notes:", error);
         if (error.response?.status === 429) {
@@ -129,8 +133,14 @@ const NoteDetailPage = () => {
   const handelDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this note?")) return;
     try {
-      await deleteNote(owner, id);
-      toast.success("Note deleted successfully");
+      // A delete needs no key and carries no body, so unlike an edit it can be
+      // queued while offline.
+      const { queued } = await deleteNote(owner, id);
+      toast.success(
+        queued
+          ? "Deleted on this device — it will sync when you're back online"
+          : "Note deleted successfully"
+      );
       navigate("/");
     } catch (error) {
       console.error("Error deleting note:", error);
@@ -148,15 +158,28 @@ const NoteDetailPage = () => {
     }
     setSaving(true);
     try {
-      const { title, content, folder } = data;
+      const { title, content, folder, isEncrypted } = data;
       // Patches the saved note into every cached listing, so the home page this
-      // navigates to shows the edit without asking for the list again.
-      await updateNote(owner, id, { title, content, folder });
-      toast.success("Note updated successfully");
+      // navigates to shows the edit without asking for the list again. Offline the
+      // edit is queued — except for an encrypted note, which is refused rather
+      // than held as plaintext until it can be sent.
+      const { queued } = await updateNote(owner, id, {
+        title,
+        content,
+        folder,
+        isEncrypted,
+      });
+      toast.success(
+        queued
+          ? "Saved on this device — it will sync when you're back online"
+          : "Note updated successfully"
+      );
       navigate("/"); // only on success, so a failed save keeps the user's edits
     } catch (error) {
       console.error("Error updating note:", error);
-      if (error.response && error.response.status === 429) {
+      if (isOfflineRefusal(error)) {
+        toast.error(error.message, { duration: 6000 });
+      } else if (error.response && error.response.status === 429) {
         toast.error("Rate limit exceeded. Please try again later.");
       } else if (error.response?.status !== 401) {
         toast.error("Failed to update note");
@@ -173,10 +196,11 @@ const NoteDetailPage = () => {
     );
   }
 
-  // Offline and this note was never stored: there is nothing to edit and no way to
-  // fetch it. The editor must not open on a blank body — saving from there would
-  // write the emptiness over the real note.
-  if (!fetched && offline) {
+  // Nothing fetched and nothing cached — the ordinary case offline. There is
+  // nothing to edit and no way to get it, and the editor must not open on a blank
+  // body: a save from there would write that emptiness over the real note. The 404
+  // and 500 paths have already navigated away by this point.
+  if (!fetched) {
     return (
       <div className="min-h-screen">
         <div className="container mx-auto px-4 py-8">
@@ -184,7 +208,14 @@ const NoteDetailPage = () => {
             <Button to="/" variant="ghost" icon={ArrowLeftIcon} className="mb-4">
               Back to Notes
             </Button>
-            <OfflineNotice message="This note has not been saved for offline use on this device yet." />
+            <OfflineNotice
+              title={offline ? undefined : "Note unavailable"}
+              message={
+                offline
+                  ? "This note has not been saved for offline use on this device yet."
+                  : "This note could not be loaded. Check your connection and try again."
+              }
+            />
           </div>
         </div>
       </div>
