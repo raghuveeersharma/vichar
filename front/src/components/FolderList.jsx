@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import Button from "./Button";
 import FolderCard from "./FolderCard";
 import FolderNameDialog from "./FolderNameDialog";
+import ConfirmDialog from "./ConfirmDialog";
 import {
   createFolder,
   deleteFolder,
@@ -38,6 +39,8 @@ const FolderList = () => {
   const online = useOnline();
   // null = closed. Otherwise { mode: "create" } or { mode: "rename", folder }.
   const [dialog, setDialog] = useState(null);
+  // The folder awaiting delete confirmation, or null.
+  const [deleting, setDeleting] = useState(null);
 
   const folders = data?.folders ?? [];
   const unfiledCount = data?.unfiledCount ?? 0;
@@ -95,11 +98,16 @@ const FolderList = () => {
     }
   };
 
-  const handleDelete = async (folder) => {
+  // The connection check happens before the prompt, not after it: a folder write
+  // offline is refused outright, and asking the user to confirm something that
+  // was never going to run is worse than saying so up front.
+  const requestDelete = (folder) => {
     if (!requireConnection()) return;
-    // Deleting a folder is refused server-side while it still holds notes, so
-    // this confirm is about the folder itself and nothing else can be lost here.
-    if (!window.confirm(`Delete the folder "${folder.name}"?`)) return;
+    setDeleting(folder);
+  };
+
+  const handleDelete = async () => {
+    const folder = deleting;
     try {
       await deleteFolder(folder._id);
       patchFolders((prev) => prev.filter((f) => f._id !== folder._id));
@@ -140,7 +148,7 @@ const FolderList = () => {
               key={folder._id}
               folder={folder}
               onRename={(f) => setDialog({ mode: "rename", folder: f })}
-              onDelete={handleDelete}
+              onDelete={requestDelete}
             />
           ))}
           {/* Only worth a tile when something is actually unfiled — an empty
@@ -163,6 +171,22 @@ const FolderList = () => {
         onSubmit={dialog?.mode === "rename" ? handleRename : handleCreate}
         onClose={() => setDialog(null)}
       />
+
+      {/* Mounted only while there is a folder to name in the message — unlike the
+          rename dialog, whose field keeps its value on the way out, this one has
+          nothing to show once the folder is cleared.
+          The server refuses to delete a folder that still holds notes, so this
+          prompt is about the folder itself and nothing else can be lost behind it. */}
+      {deleting && (
+        <ConfirmDialog
+          open
+          title="Delete folder"
+          message={`The folder "${deleting.name}" will be deleted. This cannot be undone.`}
+          confirmLabel="Delete folder"
+          onConfirm={handleDelete}
+          onClose={() => setDeleting(null)}
+        />
+      )}
     </section>
   );
 };

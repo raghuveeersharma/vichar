@@ -15,6 +15,7 @@ import api from "../libs/axios";
 import NoteCard from "../components/NoteCard";
 import RateLimitUI from "../components/RateLimitUI";
 import FolderNameDialog from "../components/FolderNameDialog";
+import ConfirmDialog from "../components/ConfirmDialog";
 import Button from "../components/Button";
 import OfflineNotice from "../components/OfflineNotice";
 import {
@@ -38,6 +39,7 @@ const FolderPage = () => {
   const isUnfiled = folderId === UNFILED;
 
   const [renaming, setRenaming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // The name and note count come out of the shared `folders` listing rather than
   // `GET /folders/:id`. It is the same data, it is already cached by the home page
@@ -125,9 +127,13 @@ const FolderPage = () => {
     }
   };
 
-  const handleDelete = async () => {
+  // Refused offline before the prompt rather than after it — see FolderList.
+  const requestDelete = () => {
     if (!requireConnection()) return;
-    if (!window.confirm(`Delete the folder "${folder.name}"?`)) return;
+    setDeleting(true);
+  };
+
+  const handleDelete = async () => {
     try {
       await deleteFolder(folderId);
       patchFolders((prev) => prev.filter((f) => f._id !== folderId));
@@ -214,7 +220,7 @@ const FolderPage = () => {
                   variant="outline-error"
                   icon={Trash2Icon}
                   size="sm"
-                  onClick={handleDelete}
+                  onClick={requestDelete}
                 >
                   delete
                 </Button>
@@ -271,14 +277,26 @@ const FolderPage = () => {
       </div>
 
       {!isUnfiled && (
-        <FolderNameDialog
-          open={renaming}
-          heading="Rename folder"
-          submitLabel="Rename"
-          initialName={folder?.name ?? ""}
-          onSubmit={handleRename}
-          onClose={() => setRenaming(false)}
-        />
+        <>
+          <FolderNameDialog
+            open={renaming}
+            heading="Rename folder"
+            submitLabel="Rename"
+            initialName={folder?.name ?? ""}
+            onSubmit={handleRename}
+            onClose={() => setRenaming(false)}
+          />
+          {/* The 409 path means an occupied folder never gets this far, so the
+              prompt is about the folder alone. */}
+          <ConfirmDialog
+            open={deleting}
+            title="Delete folder"
+            message={`The folder "${folder?.name}" will be deleted. This cannot be undone.`}
+            confirmLabel="Delete folder"
+            onConfirm={handleDelete}
+            onClose={() => setDeleting(false)}
+          />
+        </>
       )}
     </div>
   );

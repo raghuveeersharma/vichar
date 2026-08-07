@@ -14,6 +14,7 @@ import toast from "react-hot-toast";
 import RichTextEditor from "../components/RichTextEditor";
 import { htmlToText, isEmptyHtml, toEditorHtml } from "../libs/html";
 import Button from "../components/Button";
+import ConfirmDialog from "../components/ConfirmDialog";
 import FolderSelect from "../components/FolderSelect";
 import OfflineNotice from "../components/OfflineNotice";
 import { UNFILED } from "../libs/folders";
@@ -30,6 +31,7 @@ const NoteDetailPage = () => {
   const owner = user?._id;
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   // Reading a note is cached like the listings are, so opening one straight after
   // seeing it on the home page is usually free. The editor still needs a mutable
@@ -131,7 +133,6 @@ const NoteDetailPage = () => {
   };
 
   const handelDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this note?")) return;
     try {
       // A delete needs no key and carries no body, so unlike an edit it can be
       // queued while offline.
@@ -277,7 +278,7 @@ const NoteDetailPage = () => {
               <Button
                 variant="outline-error"
                 icon={Trash2}
-                onClick={handelDelete}
+                onClick={() => setConfirmingDelete(true)}
               >
                 Delete Note
               </Button>
@@ -342,6 +343,15 @@ const NoteDetailPage = () => {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Delete note"
+        message={`"${data.title}" will be deleted. This cannot be undone.`}
+        confirmLabel="Delete note"
+        onConfirm={handelDelete}
+        onClose={() => setConfirmingDelete(false)}
+      />
     </div>
   );
 };
