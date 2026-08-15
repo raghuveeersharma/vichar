@@ -15,10 +15,14 @@ import {
   QuoteIcon,
   Undo2Icon,
   Redo2Icon,
+  MicIcon,
+  MicOffIcon,
   SparklesIcon,
   WandSparklesIcon,
 } from "lucide-react";
 import api from "../libs/axios";
+import useOnline from "../hooks/useOnline";
+import useSpeechToText from "../hooks/useSpeechToText";
 import Button from "./Button";
 
 // Active state is a translucent primary wash rather than a solid fill: a row
@@ -47,6 +51,7 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
   // Which AI action is in flight, or null. Both buttons disable together so a
   // second request cannot overwrite the first one's result.
   const [aiAction, setAiAction] = useState(null);
+  const isOnline = useOnline();
 
   const editor = useEditor({
     extensions: [StarterKit, Placeholder.configure({ placeholder })],
@@ -81,6 +86,46 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
           }
         : null,
   });
+
+  // Dictation goes in through the normal command pipeline, exactly like typing:
+  // `onUpdate` fires, the parent's `value` catches up, and Ctrl+Z undoes a
+  // spoken sentence. Nothing is persisted until the user saves the note.
+  const speech = useSpeechToText({
+    onFinalResult: (text) => {
+      const spoken = text.trim();
+      if (!editor || !spoken) return;
+      // Inserted at the cursor rather than appended, so dictation can be used to
+      // fill in the middle of an existing note. The trailing space is what keeps
+      // consecutive phrases from running together.
+      editor
+        .chain()
+        .focus()
+        .insertContent(spoken + " ")
+        .run();
+    },
+    onError: (code) => {
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        toast.error("Microphone blocked. Check this site's mic permissions.");
+      } else if (code === "network") {
+        toast.error("Dictation lost its connection");
+      }
+    },
+  });
+
+  const toggleDictation = () => {
+    if (!speech.isSupported) {
+      toast.error("Dictation isn't supported in this browser. Try Chrome or Edge.");
+      return;
+    }
+    // Recognition is not local — it goes to the browser vendor's speech service
+    // — so starting it offline hangs rather than failing fast.
+    if (!isOnline) {
+      toast.error("Dictation needs a connection");
+      return;
+    }
+    if (speech.isListening) speech.stop();
+    else speech.start();
+  };
 
   // Pick up content that arrived after mount (e.g. the note detail page's
   // fetch). The equality check is what keeps the caret from jumping on typing.
@@ -225,6 +270,23 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
           onClick={() => editor.chain().focus().redo().run()}
         >
           <Redo2Icon className="size-3.5" />
+        </ToolbarButton>
+
+        {/* Sits with undo/redo rather than the formatting marks: it acts on the
+            document as a whole, not on the selection. Disabled while an AI
+            action is in flight because those replace the whole document with
+            `setContent`, which would swallow anything dictated meanwhile. */}
+        <ToolbarButton
+          label={speech.isListening ? "Stop dictation" : "Dictate"}
+          active={speech.isListening}
+          disabled={busy}
+          onClick={toggleDictation}
+        >
+          {speech.isListening ? (
+            <MicOffIcon className="size-3.5 animate-pulse text-error" />
+          ) : (
+            <MicIcon className="size-3.5" />
+          )}
         </ToolbarButton>
 
         <div className="ml-auto flex items-center gap-1">
