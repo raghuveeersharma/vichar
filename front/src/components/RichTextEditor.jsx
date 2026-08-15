@@ -158,6 +158,11 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
 
   const runAI = async (action) => {
     if (!editor) return;
+    // End dictation first. The mic button is disabled while a request is in
+    // flight, so leaving it running would strand the user with no way to switch
+    // it off — and the reply arrives as a whole-document `setContent`, which
+    // would discard anything spoken while it was on its way.
+    if (speech.isListening) speech.stop();
     const content = editor.getHTML();
     if (!editor.getText().trim()) {
       toast.error("Write something first");
@@ -321,7 +326,7 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
             audio arrives, so committing it would put words in the note that
             were never said. It lands there when it comes back as final. */}
         {speech.isListening && interimPreview && (
-          <span className="max-w-[10rem] truncate text-xs italic text-base-content/50 sm:max-w-[18rem]">
+          <span className="basis-full truncate text-xs italic text-base-content/50 sm:basis-auto sm:max-w-[18rem]">
             {interimPreview}
           </span>
         )}
