@@ -10,6 +10,7 @@ Tenancy is per-user: every note and folder carries an `owner`, and a user can on
 - **Folders** — flat, per-user, with unique (case-insensitive) names. Notes are optionally filed into one folder; everything else is "Unfiled".
 - **Encrypted notes (opt-in)** — AES-256-GCM at the storage boundary, enabled per account in Settings. Decryption is transparent, so the rest of the app only ever sees plaintext.
 - **AI editing** — two one-shot Gemini actions from the editor toolbar: fix grammar, and reformat. Nothing is persisted unless you save.
+- **Voice dictation** — a mic button in the editor toolbar transcribes speech into the note at the cursor, using the browser's built-in Web Speech API. No backend, no API key. Chrome and Edge; unsupported in Firefox, where the button explains itself rather than failing.
 - **Works offline** — reads are served cache-first from IndexedDB; note writes made offline are queued and replayed on reconnect.
 - **Installable PWA** — service worker precaches the app shell (never API responses), with an update prompt and an install banner.
 - **Cookie auth** — the JWT lives in an httpOnly cookie and is never touched by JavaScript.
@@ -31,6 +32,7 @@ vichar/
 | Frontend | React 19, Vite 7, React Router 7, Tailwind CSS 3 + daisyUI (`forest` theme), TipTap 3, axios, react-hot-toast, lucide-react, vite-plugin-pwa |
 | Backend | Node.js, Express 5, Mongoose 8 (MongoDB), jsonwebtoken, bcryptjs, cookie-parser, cors, express-rate-limit |
 | AI | Google Gemini via `@google/genai` |
+| Speech | Web Speech API (`SpeechRecognition`) — built into the browser, so no dependency, service or key |
 | Storage (client) | IndexedDB for the offline cache and the write outbox |
 
 ## Getting started
@@ -181,7 +183,7 @@ Notable decisions:
 front/src/
 ├── main.jsx · App.jsx        BrowserRouter > AuthProvider > App; routes split into GuestRoute / ProtectedRoute
 ├── context/                  AuthProvider: session state, localStorage mirror, global 401 interceptor
-├── hooks/                    useCachedQuery (cache-first read) · useOnline
+├── hooks/                    useCachedQuery (cache-first read) · useOnline · useSpeechToText
 ├── pages/                    Home · FolderPage · CreatePage · NoteDetailPage · Login · Signup · Settings
 ├── components/               RichTextEditor · folder UI · dialogs · Navbar · route guards · SyncStatus · PWAPrompts
 └── libs/                     axios · idb · cache · outbox · notes · folders · html · utils
@@ -194,6 +196,7 @@ Notable decisions:
 - **An encrypted note's body is never written to disk.** The client has no key to re-seal it, so the cache stores it as withheld and the editor refuses to open it rather than risk saving over the ciphertext.
 - **Note writes survive being offline.** Offline mutations patch the cache and append to an outbox that `SyncStatus` replays on reconnect. Queued writes collapse (create + edit → one create), a `local:` id is never sent in a URL, and replay distinguishes retryable failures (stop, keep the queue) from final `4xx` ones (drop that item and report it). Encrypted notes are refused offline rather than queued — queueing would park plaintext in IndexedDB. Folder writes require a connection.
 - **IndexedDB is treated as optional.** A cache that cannot open degrades to no cache, never to a broken app.
+- **Dictation commits only finalised speech.** `useSpeechToText` runs recognition in continuous + interim mode and keeps the two apart: a final transcript is inserted at the cursor through the normal TipTap command pipeline (so it is undoable, and saved only when the user saves), while in-progress text is exposed for a read-only preview and never written to the document — interim results are rewritten as more audio arrives, so committing them would put words in the note that were never said. Recognition is not local, so it is refused offline; unsupported browsers and denied mic permission both surface as a toast rather than a dead button.
 - **The PWA precaches the shell only**, and uses `registerType: "prompt"` so a new worker never reloads the tab out from under the editor.
 - Styling is Tailwind + daisyUI locked to the `forest` theme — use semantic classes (`text-primary`, `base-content`) rather than raw colors. Destructive actions confirm through `ConfirmDialog`, never `window.confirm`.
 
