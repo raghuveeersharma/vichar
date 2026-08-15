@@ -25,6 +25,28 @@ import useOnline from "../hooks/useOnline";
 import useSpeechToText from "../hooks/useSpeechToText";
 import Button from "./Button";
 
+// Codes that are part of normal dictation rather than a fault. `no-speech`
+// fires on any ordinary pause — it would toast at someone who merely stopped to
+// think — and `aborted` is what our own stop() and unmount teardown raise, so
+// both would be reporting the user's own action back to them.
+const SILENT_SPEECH_ERRORS = new Set(["no-speech", "aborted"]);
+
+// Everything else is worth saying out loud. Anything unlisted falls through to
+// a generic message rather than surfacing a raw spec code.
+const SPEECH_ERROR_MESSAGES = {
+  "not-allowed": "Microphone blocked. Check this site's mic permissions.",
+  "service-not-allowed": "Microphone blocked. Check this site's mic permissions.",
+  "audio-capture": "No microphone found",
+  network: "Dictation lost its connection",
+  "language-not-supported": "Dictation isn't available for this language",
+};
+
+// How much of the in-progress phrase the preview shows. The *end* is the part
+// worth seeing — it is what was just said — so the head is dropped rather than
+// letting CSS truncate the tail, which would freeze the preview on the first
+// few words while the rest of the sentence scrolled past unseen.
+const INTERIM_PREVIEW_CHARS = 60;
+
 // Active state is a translucent primary wash rather than a solid fill: a row
 // of solid buttons on a glass bar reads as heavier than the text it formats.
 const ToolbarButton = ({ onClick, active, disabled, label, children }) => (
@@ -104,11 +126,8 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
         .run();
     },
     onError: (code) => {
-      if (code === "not-allowed" || code === "service-not-allowed") {
-        toast.error("Microphone blocked. Check this site's mic permissions.");
-      } else if (code === "network") {
-        toast.error("Dictation lost its connection");
-      }
+      if (SILENT_SPEECH_ERRORS.has(code)) return;
+      toast.error(SPEECH_ERROR_MESSAGES[code] ?? "Dictation stopped unexpectedly");
     },
   });
 
@@ -171,6 +190,14 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
   if (!editor || !state) return null;
 
   const busy = aiAction !== null;
+
+  // Keep the tail, and let the `truncate` class handle whatever still does not
+  // fit at 375px — the character cap alone cannot know the rendered width.
+  const interim = speech.interimTranscript.trim();
+  const interimPreview =
+    interim.length > INTERIM_PREVIEW_CHARS
+      ? `…${interim.slice(-INTERIM_PREVIEW_CHARS)}`
+      : interim;
 
   return (
     <div className="glass-inset">
@@ -288,6 +315,16 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
             <MicIcon className="size-3.5" />
           )}
         </ToolbarButton>
+
+        {/* Read-only preview of what the recogniser is still revising. It is
+            deliberately not in the document: interim text is rewritten as more
+            audio arrives, so committing it would put words in the note that
+            were never said. It lands there when it comes back as final. */}
+        {speech.isListening && interimPreview && (
+          <span className="max-w-[10rem] truncate text-xs italic text-base-content/50 sm:max-w-[18rem]">
+            {interimPreview}
+          </span>
+        )}
 
         <div className="ml-auto flex items-center gap-1">
           <Button
