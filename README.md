@@ -14,6 +14,7 @@ Tenancy is per-user: every note and folder carries an `owner`, and a user can on
 - **Works offline** — reads are served cache-first from IndexedDB; note writes made offline are queued and replayed on reconnect.
 - **Installable PWA** — service worker precaches the app shell (never API responses), with an update prompt and an install banner.
 - **Cookie auth** — the JWT lives in an httpOnly cookie and is never touched by JavaScript.
+- **CSRF protection** — every state-changing API request must have an `Origin` exactly matching `CORS_ORIGIN`.
 
 ## Repository layout
 
@@ -71,7 +72,7 @@ Both packages read from their own `.env`, which is gitignored.
 |---|---|---|
 | `PORT` | no | Defaults to `5000`. |
 | `MONGODB_URI` | **yes** | The connection is awaited before `app.listen`, so a bad URI means the server never binds a port. |
-| `CORS_ORIGIN` | **yes** | The frontend's **exact** origin — not a wildcard. `cors` runs with `credentials: true`, and browsers reject `*` on credentialed requests, which silently breaks auth. |
+| `CORS_ORIGIN` | **yes** | The frontend's **exact** origin — not a wildcard. `cors` runs with `credentials: true`, and browsers reject `*` on credentialed requests, which silently breaks auth. It is also required by the CSRF Origin check on every `POST`, `PUT`, `PATCH`, and `DELETE` API request. |
 | `JWT_SECRET` | **yes** | Missing value exits the process at boot rather than failing per request. Changing it invalidates every existing session. |
 | `NODE_ENV` | no | `production` switches the auth cookie to `Secure` + `SameSite=None`, required when the SPA and API are on different domains. |
 | `NOTE_ENCRYPTION_KEY` | no | Must decode to exactly 32 bytes (`openssl rand -hex 32`, or base64) — anything else throws rather than being padded. Without it, everything works except creating an encrypted note, which answers `503`. |
