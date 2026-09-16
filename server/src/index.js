@@ -10,6 +10,7 @@ import cookieParser from "cookie-parser";
 import rateLimiter from "./middlewear/rateLimiter.js";
 import aiRateLimiter from "./middlewear/aiRateLimiter.js";
 import protect from "./middlewear/protect.js";
+import csrfOrigin from "./middlewear/csrfOrigin.js";
 const app = express();
 
 dotenv.config(); // Load environment variables from .env file
@@ -18,6 +19,12 @@ dotenv.config(); // Load environment variables from .env file
 // would reject at request time with a confusing error.
 if (!process.env.JWT_SECRET) {
   console.error("JWT_SECRET is not set — see server/.env.example");
+  process.exit(1);
+}
+
+// CORS and the CSRF Origin check both rely on one explicit frontend origin.
+if (!process.env.CORS_ORIGIN) {
+  console.error("CORS_ORIGIN is not set — see server/.env.example");
   process.exit(1);
 }
 
@@ -35,6 +42,9 @@ app.use(
 app.use(rateLimiter); // Apply rate limiting middleware
 app.use(express.json()); // Parse JSON bodies from the request
 app.use(cookieParser()); // Populate req.cookies so `protect` can read the JWT
+// Apply to public auth routes too: login and logout are state changes, and
+// login CSRF could otherwise put a visitor into an attacker's account.
+app.use("/api", csrfOrigin);
 
 app.use("/api/auth", authRouter); // Public: signup / login / logout (+ guarded /me)
 app.use("/api/notes", protect, router); // Every note route requires a valid session

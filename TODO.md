@@ -4,7 +4,7 @@ This list reflects the current implementation and project documentation review.
 
 ## Priority 1 — security and reliability
 
-- [ ] Add CSRF protection for all state-changing API routes. Production cookies use `SameSite=None` for cross-origin frontend/API deployment, so use a CSRF token or strict Origin validation.
+- [x] Add CSRF protection for all state-changing API routes. Production cookies use `SameSite=None` for cross-origin frontend/API deployment, so use a CSRF token or strict Origin validation.
 - [ ] Add automated tests. The backend `npm test` script is still the default failing stub, and neither package currently has unit, API/integration, or end-to-end coverage.
 - [ ] Add CI (for example, GitHub Actions) to install dependencies, lint, build, and run tests on every pull request and push.
 - [ ] Add server-side request validation and sensible limits for email, name, note title, note HTML content, and folder name.
