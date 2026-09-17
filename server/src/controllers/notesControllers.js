@@ -6,6 +6,7 @@ import {
   encryptContent,
   encryptionUnavailableReason,
 } from "../libs/noteCrypto.js";
+import { sanitizeRichText } from "../libs/richText.js";
 
 // Every handler here is mounted behind the `protect` middleware, so req.user is
 // always set. Reads and writes filter by owner instead of looking a note up by id
@@ -109,10 +110,19 @@ export async function getAllNotes(req, res) {
 export async function createNote(req, res) {
   try {
     const { title, content, encrypted, folder } = req.body;
-    if (!title || !content) {
+    if (
+      typeof title !== "string" ||
+      !title.trim() ||
+      typeof content !== "string" ||
+      !content.trim()
+    ) {
       return res
         .status(400)
         .json({ message: "Title and content are required" });
+    }
+    const safeContent = sanitizeRichText(content);
+    if (!safeContent.trim()) {
+      return res.status(400).json({ message: "Note content is not allowed" });
     }
     const owner = req.user._id;
     // Omitting `folder` creates an unfiled note, so every existing client keeps
@@ -147,14 +157,14 @@ export async function createNote(req, res) {
     }
     const newNote = await Note.create({
       title,
-      content: shouldEncrypt ? encryptContent(content, owner) : content,
+      content: shouldEncrypt ? encryptContent(safeContent, owner) : safeContent,
       isEncrypted: shouldEncrypt,
       folder: resolved.folder,
       owner,
     });
     res.status(201).json({
       message: "Note created successfully",
-      note: toClientNote(newNote, content),
+      note: toClientNote(newNote, safeContent),
     });
   } catch (error) {
     console.error("Error in createNote:", error);
@@ -198,10 +208,19 @@ export async function updateNoteById(req, res) {
   try {
     const { id } = req.params;
     const { title, content } = req.body;
-    if (!title || !content) {
+    if (
+      typeof title !== "string" ||
+      !title.trim() ||
+      typeof content !== "string" ||
+      !content.trim()
+    ) {
       return res
         .status(400)
         .json({ message: "Title and content are required for update" });
+    }
+    const safeContent = sanitizeRichText(content);
+    if (!safeContent.trim()) {
+      return res.status(400).json({ message: "Note content is not allowed" });
     }
     const owner = req.user._id;
     // Read the stored flag first: an encrypted note stays encrypted no matter
@@ -223,7 +242,9 @@ export async function updateNoteById(req, res) {
     // Unfiled as a side effect of saving.
     const update = {
       title,
-      content: existing.isEncrypted ? encryptContent(content, owner) : content,
+      content: existing.isEncrypted
+        ? encryptContent(safeContent, owner)
+        : safeContent,
     };
     if ("folder" in req.body) {
       const resolved = await resolveFolder(req.body.folder, owner);
@@ -242,7 +263,7 @@ export async function updateNoteById(req, res) {
     }
     res.status(200).json({
       message: "Note updated successfully",
-      note: toClientNote(note, content),
+      note: toClientNote(note, safeContent),
     });
   } catch (error) {
     console.error("Error in updateNoteById:", error);
