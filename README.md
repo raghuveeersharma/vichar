@@ -7,6 +7,7 @@ Tenancy is per-user: every note and folder carries an `owner`, and a user can on
 ## Features
 
 - **Rich text notes** — TipTap editor; note bodies are stored as HTML.
+- **Safe rich text** — stored notes and AI replies are sanitised to the editor's supported HTML before they can be rendered.
 - **Folders** — flat, per-user, with unique (case-insensitive) names. Notes are optionally filed into one folder; everything else is "Unfiled".
 - **Encrypted notes (opt-in)** — AES-256-GCM at the storage boundary, enabled per account in Settings. Decryption is transparent, so the rest of the app only ever sees plaintext.
 - **AI editing** — two one-shot Gemini actions from the editor toolbar: fix grammar, and reformat. Nothing is persisted unless you save.
@@ -95,6 +96,7 @@ The example file lives at `front/src/.env.example`, but Vite loads `.env` from `
 # server/
 npm run dev        # nodemon src/index.js
 npm start          # node src/index.js
+npm test           # API integration tests (ephemeral MongoDB)
 
 # front/
 npm run dev        # vite dev server
@@ -103,7 +105,20 @@ npm run preview    # serve the production build
 npm run lint       # eslint .
 ```
 
-There are no tests in either package.
+`npm test` in `server/` runs API integration tests against an ephemeral MongoDB. They
+cover CSRF origin enforcement, cookie authentication, rich-text sanitisation,
+and note tenant isolation. CI runs those tests plus the frontend lint and build
+on every pull request and push.
+
+## Rich-text safety policy
+
+Notes may contain only the structure the editor supports: paragraphs, headings,
+basic inline marks, code/preformatted text, blockquotes, ordered/unordered
+lists, links, horizontal rules, and line breaks. Links may have only `http`,
+`https`, or `mailto` `href` values. All other tags and attributes — including
+scripts, embedded media, inline styles, event handlers, and `javascript:` URLs
+— are removed on note create/update and from AI responses before they reach the
+browser. Existing legacy content is also cleaned before being sent to Gemini.
 
 ## API
 

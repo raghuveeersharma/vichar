@@ -6,6 +6,7 @@ import {
   ALLOWED_TAGS,
   ThinkingLevel,
 } from "../libs/gemini.js";
+import { sanitizeRichText } from "../libs/richText.js";
 
 // Roughly 25k tokens of HTML. Past this the request gets slow and expensive for
 // a note editor, so refuse loudly instead of silently truncating the user's work.
@@ -101,8 +102,20 @@ function handler(action) {
           .json({ message: "Note is too long for AI editing" });
       }
 
-      const { html, summary } = await runAction(action, content);
-      res.status(200).json({ html, summary });
+      // Legacy notes and crafted requests can contain markup the current
+      // editor would never emit. Do not send executable or unsupported HTML to
+      // an external model, and never return it to the browser either.
+      const safeContent = sanitizeRichText(content);
+      if (!safeContent.trim()) {
+        return res.status(400).json({ message: "Note content is not allowed" });
+      }
+
+      const { html, summary } = await runAction(action, safeContent);
+      const safeHtml = sanitizeRichText(html);
+      if (!safeHtml.trim()) {
+        throw fail(502, "The AI returned unsafe or empty content");
+      }
+      res.status(200).json({ html: safeHtml, summary });
     } catch (error) {
       console.error(`Error in ${action}:`, error);
       if (error.statusCode) {

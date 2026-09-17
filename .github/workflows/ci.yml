@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            front/package-lock.json
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Run API integration tests
+        working-directory: server
+        run: npm test
+
+      - name: Install frontend dependencies
+        working-directory: front
+        run: npm ci
+
+      - name: Lint frontend
+        working-directory: front
+        run: npm run lint
+
+      - name: Build frontend
+        working-directory: front
+        run: npm run build
