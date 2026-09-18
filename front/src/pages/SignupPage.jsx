@@ -64,6 +64,7 @@ const SignupPage = () => {
                 value={data.name}
                 onChange={(e) => setData({ ...data, name: e.target.value })}
                 autoComplete="name"
+                maxLength={100}
                 required
               />
             </div>
@@ -78,6 +79,7 @@ const SignupPage = () => {
                 value={data.email}
                 onChange={(e) => setData({ ...data, email: e.target.value })}
                 autoComplete="email"
+                maxLength={254}
                 required
               />
             </div>
@@ -89,6 +91,7 @@ const SignupPage = () => {
               onChange={(e) => setData({ ...data, password: e.target.value })}
               autoComplete="new-password"
               minLength={6}
+              maxLength={72}
               required
             />
             <Button

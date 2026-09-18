@@ -7,6 +7,11 @@ import {
   encryptionUnavailableReason,
 } from "../libs/noteCrypto.js";
 import { sanitizeRichText } from "../libs/richText.js";
+import {
+  LIMITS,
+  normalizedText,
+  validNoteContent,
+} from "../libs/requestValidation.js";
 
 // Every handler here is mounted behind the `protect` middleware, so req.user is
 // always set. Reads and writes filter by owner instead of looking a note up by id
@@ -109,18 +114,21 @@ export async function getAllNotes(req, res) {
 
 export async function createNote(req, res) {
   try {
-    const { title, content, encrypted, folder } = req.body;
-    if (
-      typeof title !== "string" ||
-      !title.trim() ||
-      typeof content !== "string" ||
-      !content.trim()
-    ) {
-      return res
-        .status(400)
-        .json({ message: "Title and content are required" });
+    const { title, content, encrypted, folder } = req.body ?? {};
+    const titleResult = normalizedText(title, {
+      label: "Note title",
+      maxLength: LIMITS.noteTitle,
+    });
+    const contentResult = validNoteContent(content);
+    const invalid = [titleResult, contentResult].find((result) => result.error);
+    if (invalid) {
+      return res.status(invalid.status ?? 400).json({ message: invalid.error });
     }
-    const safeContent = sanitizeRichText(content);
+    if (encrypted !== undefined && typeof encrypted !== "boolean") {
+      return res.status(400).json({ message: "encrypted must be true or false" });
+    }
+
+    const safeContent = sanitizeRichText(contentResult.value);
     if (!safeContent.trim()) {
       return res.status(400).json({ message: "Note content is not allowed" });
     }
@@ -136,7 +144,7 @@ export async function createNote(req, res) {
     // 503 naming the cause rather than a boot failure or a silent plaintext save
     // — quietly storing a note the user asked to encrypt would be the one
     // unacceptable outcome here.
-    const shouldEncrypt = Boolean(encrypted);
+    const shouldEncrypt = encrypted === true;
     if (shouldEncrypt) {
       // The per-account setting is enforced here, not only in the UI that hides
       // the button. A preference the API ignores is not a preference — and the
@@ -156,7 +164,7 @@ export async function createNote(req, res) {
       }
     }
     const newNote = await Note.create({
-      title,
+      title: titleResult.value,
       content: shouldEncrypt ? encryptContent(safeContent, owner) : safeContent,
       isEncrypted: shouldEncrypt,
       folder: resolved.folder,
@@ -175,6 +183,9 @@ export async function createNote(req, res) {
 export async function getNoteById(req, res) {
   try {
     const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(404).json({ message: "Note not found" });
+    }
     const owner = req.user._id;
     const note = await Note.findOne({ _id: id, owner }).populate(
       "folder",
@@ -207,18 +218,22 @@ export async function getNoteById(req, res) {
 export async function updateNoteById(req, res) {
   try {
     const { id } = req.params;
-    const { title, content } = req.body;
-    if (
-      typeof title !== "string" ||
-      !title.trim() ||
-      typeof content !== "string" ||
-      !content.trim()
-    ) {
-      return res
-        .status(400)
-        .json({ message: "Title and content are required for update" });
+    const body = req.body ?? {};
+    const { title, content } = body;
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(404).json({ message: "Note not found" });
     }
-    const safeContent = sanitizeRichText(content);
+    const titleResult = normalizedText(title, {
+      label: "Note title",
+      maxLength: LIMITS.noteTitle,
+    });
+    const contentResult = validNoteContent(content);
+    const invalid = [titleResult, contentResult].find((result) => result.error);
+    if (invalid) {
+      return res.status(invalid.status ?? 400).json({ message: invalid.error });
+    }
+
+    const safeContent = sanitizeRichText(contentResult.value);
     if (!safeContent.trim()) {
       return res.status(400).json({ message: "Note content is not allowed" });
     }
@@ -241,13 +256,13 @@ export async function updateNoteById(req, res) {
     // client — or by any request that just sends title and content — back into
     // Unfiled as a side effect of saving.
     const update = {
-      title,
+      title: titleResult.value,
       content: existing.isEncrypted
         ? encryptContent(safeContent, owner)
         : safeContent,
     };
-    if ("folder" in req.body) {
-      const resolved = await resolveFolder(req.body.folder, owner);
+    if ("folder" in body) {
+      const resolved = await resolveFolder(body.folder, owner);
       if (resolved.error) {
         return res.status(404).json({ message: resolved.error });
       }
@@ -274,6 +289,9 @@ export async function updateNoteById(req, res) {
 export async function deleteNoteById(req, res) {
   try {
     const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(404).json({ message: "Note not found" });
+    }
     const note = await Note.findOneAndDelete({ _id: id, owner: req.user._id });
     if (!note) {
       return res.status(404).json({ message: "Note not found" });

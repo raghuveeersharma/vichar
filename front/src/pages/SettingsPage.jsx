@@ -143,6 +143,7 @@ const SettingsPage = () => {
                       setEmailForm({ ...emailForm, email: e.target.value })
                     }
                     autoComplete="email"
+                    maxLength={254}
                     required
                   />
                 </div>
@@ -158,6 +159,7 @@ const SettingsPage = () => {
                     })
                   }
                   autoComplete="current-password"
+                  maxLength={72}
                   required
                 />
                 <div className="card-actions justify-end">
@@ -195,6 +197,7 @@ const SettingsPage = () => {
                     })
                   }
                   autoComplete="current-password"
+                  maxLength={72}
                   required
                 />
                 <PasswordInput
@@ -209,6 +212,7 @@ const SettingsPage = () => {
                     })
                   }
                   autoComplete="new-password"
+                  maxLength={72}
                   required
                 />
                 <PasswordInput
@@ -223,6 +227,7 @@ const SettingsPage = () => {
                     })
                   }
                   autoComplete="new-password"
+                  maxLength={72}
                   required
                 />
                 <div className="card-actions justify-end">

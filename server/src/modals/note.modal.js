@@ -4,6 +4,8 @@ const noteShema = new mongoose.Schema(
     title: {
       type: String,
       required: true,
+      trim: true,
+      maxlength: 200,
     },
     // Either the editor's HTML fragment or, when `isEncrypted`, the
     // `enc:v1:...` envelope from libs/noteCrypto.js. Still a plain String

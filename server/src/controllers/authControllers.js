@@ -4,27 +4,37 @@ import {
   setTokenCookie,
   clearTokenCookie,
 } from "../libs/token.js";
+import {
+  LIMITS,
+  normalizedEmail,
+  normalizedText,
+  validPassword,
+} from "../libs/requestValidation.js";
 
 export async function signup(req, res) {
   try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Name, email and password are required" });
-    }
-    if (password.length < 6) {
-      return res
-        .status(400)
-        .json({ message: "Password must be at least 6 characters" });
-    }
+    const { name, email, password } = req.body ?? {};
+    const nameResult = normalizedText(name, {
+      label: "Name",
+      maxLength: LIMITS.name,
+    });
+    const emailResult = normalizedEmail(email);
+    const passwordResult = validPassword(password);
+    const invalid = [nameResult, emailResult, passwordResult].find(
+      (result) => result.error
+    );
+    if (invalid) return res.status(400).json({ message: invalid.error });
 
-    const existing = await User.findOne({ email: email.toLowerCase() });
+    const existing = await User.findOne({ email: emailResult.value });
     if (existing) {
       return res.status(409).json({ message: "Email already registered" });
     }
 
-    const user = await User.create({ name, email, password });
+    const user = await User.create({
+      name: nameResult.value,
+      email: emailResult.value,
+      password: passwordResult.value,
+    });
     setTokenCookie(res, signToken(user._id));
     res.status(201).json({ user: user.toPublicJSON() });
   } catch (error) {
@@ -35,20 +45,21 @@ export async function signup(req, res) {
 
 export async function login(req, res) {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Email and password are required" });
-    }
+    const { email, password } = req.body ?? {};
+    const emailResult = normalizedEmail(email);
+    const passwordResult = validPassword(password, { minLength: 1 });
+    const invalid = [emailResult, passwordResult].find(
+      (result) => result.error
+    );
+    if (invalid) return res.status(400).json({ message: invalid.error });
 
     // password is select:false on the schema, so ask for it explicitly
-    const user = await User.findOne({ email: email.toLowerCase() }).select(
+    const user = await User.findOne({ email: emailResult.value }).select(
       "+password"
     );
     // Same message for unknown email and wrong password so the response
     // does not reveal which emails are registered.
-    if (!user || !(await user.comparePassword(password))) {
+    if (!user || !(await user.comparePassword(passwordResult.value))) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
@@ -72,14 +83,18 @@ export function me(req, res) {
 
 export async function updateEmail(req, res) {
   try {
-    const { email, currentPassword } = req.body;
-    if (!email || !currentPassword) {
-      return res
-        .status(400)
-        .json({ message: "Email and current password are required" });
-    }
+    const { email, currentPassword } = req.body ?? {};
+    const emailResult = normalizedEmail(email);
+    const passwordResult = validPassword(currentPassword, {
+      label: "Current password",
+      minLength: 1,
+    });
+    const invalid = [emailResult, passwordResult].find(
+      (result) => result.error
+    );
+    if (invalid) return res.status(400).json({ message: invalid.error });
 
-    const nextEmail = email.toLowerCase().trim();
+    const nextEmail = emailResult.value;
     if (nextEmail === req.user.email) {
       return res
         .status(400)
@@ -88,7 +103,7 @@ export async function updateEmail(req, res) {
 
     // protect() loads the user without the password (select:false)
     const user = await User.findById(req.user._id).select("+password");
-    if (!(await user.comparePassword(currentPassword))) {
+    if (!(await user.comparePassword(passwordResult.value))) {
       return res.status(401).json({ message: "Current password is incorrect" });
     }
 
@@ -112,7 +127,7 @@ export async function updateEmail(req, res) {
 // showing a button.
 export async function updatePreferences(req, res) {
   try {
-    const { encryptedNotesEnabled } = req.body;
+    const { encryptedNotesEnabled } = req.body ?? {};
     // Strict boolean check, not a truthiness coercion — a client sending the
     // string "false" would otherwise silently turn the setting on.
     if (typeof encryptedNotesEnabled !== "boolean") {
@@ -141,30 +156,31 @@ export async function updatePreferences(req, res) {
 
 export async function updatePassword(req, res) {
   try {
-    const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) {
-      return res
-        .status(400)
-        .json({ message: "Current and new password are required" });
-    }
-    if (newPassword.length < 6) {
-      return res
-        .status(400)
-        .json({ message: "Password must be at least 6 characters" });
-    }
-    if (newPassword === currentPassword) {
+    const { currentPassword, newPassword } = req.body ?? {};
+    const currentPasswordResult = validPassword(currentPassword, {
+      label: "Current password",
+      minLength: 1,
+    });
+    const newPasswordResult = validPassword(newPassword, {
+      label: "New password",
+    });
+    const invalid = [currentPasswordResult, newPasswordResult].find(
+      (result) => result.error
+    );
+    if (invalid) return res.status(400).json({ message: invalid.error });
+    if (newPasswordResult.value === currentPasswordResult.value) {
       return res
         .status(400)
         .json({ message: "New password must differ from the current one" });
     }
 
     const user = await User.findById(req.user._id).select("+password");
-    if (!(await user.comparePassword(currentPassword))) {
+    if (!(await user.comparePassword(currentPasswordResult.value))) {
       return res.status(401).json({ message: "Current password is incorrect" });
     }
 
     // The pre("save") hook hashes it — never hash at the call site
-    user.password = newPassword;
+    user.password = newPasswordResult.value;
     await user.save();
 
     // Re-issue the cookie so the session survives the change
