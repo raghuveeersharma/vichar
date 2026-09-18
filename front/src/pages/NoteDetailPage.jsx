@@ -308,6 +308,7 @@ const NoteDetailPage = () => {
                     className="input input-bordered input-glass"
                     value={data.title}
                     onChange={(e) => edit({ title: e.target.value })}
+                    maxLength={200}
                     required
                   />
                 </div>

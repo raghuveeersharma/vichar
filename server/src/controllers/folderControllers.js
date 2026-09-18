@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Folder from "../modals/folder.modal.js";
 import Note from "../modals/note.modal.js";
+import { LIMITS, normalizedText } from "../libs/requestValidation.js";
 
 // Mounted behind `protect`, so req.user is always set. Same rule as notes: every
 // query filters on owner rather than looking a folder up by id and comparing
@@ -72,12 +73,16 @@ export async function getFolderById(req, res) {
 
 export async function createFolder(req, res) {
   try {
-    const { name } = req.body;
-    if (!name || !name.trim()) {
-      return res.status(400).json({ message: "Folder name is required" });
+    const { name } = req.body ?? {};
+    const nameResult = normalizedText(name, {
+      label: "Folder name",
+      maxLength: LIMITS.folderName,
+    });
+    if (nameResult.error) {
+      return res.status(400).json({ message: nameResult.error });
     }
     const folder = await Folder.create({
-      name: name.trim(),
+      name: nameResult.value,
       owner: req.user._id,
     });
     res
@@ -100,16 +105,20 @@ export async function createFolder(req, res) {
 export async function updateFolderById(req, res) {
   try {
     const { id } = req.params;
-    const { name } = req.body;
-    if (!name || !name.trim()) {
-      return res.status(400).json({ message: "Folder name is required" });
-    }
+    const { name } = req.body ?? {};
     if (!mongoose.isValidObjectId(id)) {
       return res.status(404).json({ message: "Folder not found" });
     }
+    const nameResult = normalizedText(name, {
+      label: "Folder name",
+      maxLength: LIMITS.folderName,
+    });
+    if (nameResult.error) {
+      return res.status(400).json({ message: nameResult.error });
+    }
     const folder = await Folder.findOneAndUpdate(
       { _id: id, owner: req.user._id },
-      { name: name.trim() },
+      { name: nameResult.value },
       { new: true, runValidators: true }
     );
     if (!folder) {

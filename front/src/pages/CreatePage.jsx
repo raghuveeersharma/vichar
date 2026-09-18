@@ -132,6 +132,8 @@ const CreatePage = () => {
                     onChange={(e) =>
                       setData({ ...data, title: e.target.value })
                     }
+                    maxLength={200}
+                    required
                   />
                 </div>
                 <FolderSelect

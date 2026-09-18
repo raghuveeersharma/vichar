@@ -18,6 +18,8 @@ const [{ default: app }, { default: Note }, { sanitizeRichText }] =
     import("../src/libs/richText.js"),
   ]);
 
+const NOTE_CONTENT_LIMIT = 128 * 1024;
+
 let mongo;
 
 before(async () => {
@@ -115,6 +117,98 @@ test("HTML reduced to nothing by the policy cannot be saved", async () => {
 
   assert.equal(response.status, 400);
   assert.equal(response.body.message, "Note content is not allowed");
+});
+
+test("request validation rejects invalid types, oversized fields, and coercion", async () => {
+  const oversizedName = await request(app)
+    .post("/api/auth/signup")
+    .set("Origin", ORIGIN)
+    .send({
+      name: "n".repeat(101),
+      email: "long-name@example.test",
+      password: "correct horse battery staple",
+    });
+  assert.equal(oversizedName.status, 400);
+  assert.equal(oversizedName.body.message, "Name must be at most 100 characters");
+
+  const invalidEmail = await request(app)
+    .post("/api/auth/signup")
+    .set("Origin", ORIGIN)
+    .send({
+      name: "Invalid email",
+      email: ["not-an-email"],
+      password: "correct horse battery staple",
+    });
+  assert.equal(invalidEmail.status, 400);
+  assert.equal(invalidEmail.body.message, "Email must be text");
+
+  const oversizedPassword = await request(app)
+    .post("/api/auth/signup")
+    .set("Origin", ORIGIN)
+    .send({
+      name: "Long password",
+      email: "long-password@example.test",
+      password: "p".repeat(73),
+    });
+  assert.equal(oversizedPassword.status, 400);
+  assert.equal(oversizedPassword.body.message, "Password must be at most 72 bytes");
+
+  const agent = await signupAgent({ email: "validation@example.test" });
+  const oversizedTitle = await agent
+    .post("/api/notes")
+    .set("Origin", ORIGIN)
+    .send(notePayload({ title: "t".repeat(201) }));
+  assert.equal(oversizedTitle.status, 400);
+  assert.equal(
+    oversizedTitle.body.message,
+    "Note title must be at most 200 characters"
+  );
+
+  const oversizedContent = await agent
+    .post("/api/notes")
+    .set("Origin", ORIGIN)
+    .send(notePayload({ content: "x".repeat(NOTE_CONTENT_LIMIT + 1) }));
+  assert.equal(oversizedContent.status, 413);
+  assert.equal(oversizedContent.body.message, "Note content must be at most 128 KB");
+
+  const invalidEncryptionFlag = await agent
+    .post("/api/notes")
+    .set("Origin", ORIGIN)
+    .send(notePayload({ encrypted: "false" }));
+  assert.equal(invalidEncryptionFlag.status, 400);
+  assert.equal(invalidEncryptionFlag.body.message, "encrypted must be true or false");
+
+  const oversizedFolder = await agent
+    .post("/api/folders")
+    .set("Origin", ORIGIN)
+    .send({ name: "f".repeat(61) });
+  assert.equal(oversizedFolder.status, 400);
+  assert.equal(
+    oversizedFolder.body.message,
+    "Folder name must be at most 60 characters"
+  );
+});
+
+test("malformed note ids and JSON request bodies return API errors", async () => {
+  const agent = await signupAgent({ email: "bad-request@example.test" });
+  const invalidId = await agent.get("/api/notes/not-a-mongo-id");
+  assert.equal(invalidId.status, 404);
+  assert.equal(invalidId.body.message, "Note not found");
+
+  const malformedJson = await request(app)
+    .post("/api/auth/signup")
+    .set("Origin", ORIGIN)
+    .set("Content-Type", "application/json")
+    .send('{"name":');
+  assert.equal(malformedJson.status, 400);
+  assert.equal(malformedJson.body.message, "Request body must be valid JSON");
+
+  const oversizedBody = await request(app)
+    .post("/api/auth/signup")
+    .set("Origin", ORIGIN)
+    .send({ name: "x".repeat(256 * 1024) });
+  assert.equal(oversizedBody.status, 413);
+  assert.equal(oversizedBody.body.message, "Request body is too large");
 });
 
 test("the policy also removes unsafe HTML from AI responses", () => {

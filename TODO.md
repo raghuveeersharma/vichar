@@ -7,7 +7,7 @@ This list reflects the current implementation and project documentation review.
 - [x] Add CSRF protection for all state-changing API routes. Production cookies use `SameSite=None` for cross-origin frontend/API deployment, so use a CSRF token or strict Origin validation.
 - [x] Add automated tests. The backend now has API integration coverage for CSRF, cookie auth, rich-text sanitisation, and tenant isolation; expand it as features are added.
 - [x] Add CI (for example, GitHub Actions) to install dependencies, lint, build, and run tests on every pull request and push.
-- [ ] Add server-side request validation and sensible limits for email, name, note title, note HTML content, and folder name.
+- [x] Add server-side request validation and sensible limits for email, name, note title, note HTML content, and folder name.
 - [x] Define and enforce an HTML sanitisation policy for user-authored and AI-produced rich-text content.
 - [ ] Add stricter authentication-abuse protection, especially for login attempts (IP and/or account-based throttling).
 
@@ -18,7 +18,7 @@ This list reflects the current implementation and project documentation review.
 - [ ] Document and test MongoDB backup and restore procedures.
 - [ ] Document the encryption-key backup, recovery, and rotation policy. The key must be retained; losing it makes encrypted notes unreadable.
 - [ ] Add deployment smoke checks for the frontend, API, CORS, secure cookies, database connectivity, and PWA registration.
-- [ ] Decide whether the server should fail at boot when `CORS_ORIGIN` is unset. The README marks it as required, but the server currently validates only `JWT_SECRET`.
+- [x] Fail at boot when `CORS_ORIGIN` is unset, matching the documented requirement.
 
 ## Priority 3 — authentication and account capabilities
 

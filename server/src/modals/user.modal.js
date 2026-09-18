@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      maxlength: 100,
     },
     email: {
       type: String,
@@ -14,11 +15,14 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
+      maxlength: 254,
+      match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     },
     password: {
       type: String,
       required: true,
       minlength: 6,
+      maxlength: 72,
       select: false, // never returned by queries unless explicitly selected
     },
     // Opt-in, per account: gates the "create encrypted note" button in the UI

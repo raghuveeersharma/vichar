@@ -62,6 +62,7 @@ const LoginPage = () => {
                 value={data.email}
                 onChange={(e) => setData({ ...data, email: e.target.value })}
                 autoComplete="email"
+                maxLength={254}
                 required
               />
             </div>
@@ -72,6 +73,7 @@ const LoginPage = () => {
               value={data.password}
               onChange={(e) => setData({ ...data, password: e.target.value })}
               autoComplete="current-password"
+              maxLength={72}
               required
             />
             <Button

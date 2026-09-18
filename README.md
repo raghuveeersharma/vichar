@@ -88,7 +88,7 @@ Both packages read from their own `.env`, which is gitignored.
 |---|---|---|
 | `VITE_SERVER_URL` | **yes** | Must include the `/api` suffix, e.g. `http://localhost:5000/api` — it is used as the axios `baseURL` and callers request paths like `/notes`. |
 
-The example file lives at `front/src/.env.example`, but Vite loads `.env` from `front/`.
+The example file lives at `front/.env.example`, where Vite loads `.env` from.
 
 ## Scripts
 
@@ -167,6 +167,7 @@ Base path `/api`. Auth is a JWT in an httpOnly cookie, so requests must be made 
 
 - Another user's document returns **404, not 403**, so responses never confirm that an id exists.
 - Validation failures → `400`, missing documents → `404`, unexpected errors → `500 { message: "Internal server error" }`.
+- Requests are capped at 256 KB. Names are limited to 100 characters; emails to 254; passwords to 72 UTF-8 bytes; note titles to 200 characters; folder names to 60 characters; and note HTML to 128 KB. Oversized request bodies and note HTML return `413`.
 - Rate limiting is global: **50 requests / 15 min per IP**, applied before the auth routes, so logins share the budget with note requests. `/api/ai` adds a tighter **15 / 15 min** limiter on top — the two stack, so 15 is a ceiling.
 
 ## Architecture
