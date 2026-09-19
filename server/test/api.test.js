@@ -80,6 +80,53 @@ test("signup establishes a cookie-authenticated session", async () => {
   assert.equal(response.body.user.password, undefined);
 });
 
+test("login attempts are capped per account even across source IPs", async () => {
+  const email = "login-account-limit@example.test";
+  await signupAgent({ email });
+
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    const response = await request(app)
+      .post("/api/auth/login")
+      .set("Origin", ORIGIN)
+      .set("X-Forwarded-For", `198.51.100.${attempt}`)
+      .send({ email, password: "wrong password" });
+    assert.equal(response.status, 401);
+  }
+
+  const blocked = await request(app)
+    .post("/api/auth/login")
+    .set("Origin", ORIGIN)
+    .set("X-Forwarded-For", "198.51.100.99")
+    .send({ email, password: "wrong password" });
+
+  assert.equal(blocked.status, 429);
+  assert.equal(blocked.body.message, "Too many login attempts, please try again later.");
+});
+
+test("login attempts are capped per source IP", async () => {
+  const ip = "203.0.113.10";
+  for (let attempt = 1; attempt <= 10; attempt += 1) {
+    const response = await request(app)
+      .post("/api/auth/login")
+      .set("Origin", ORIGIN)
+      .set("X-Forwarded-For", ip)
+      .send({
+        email: `different-account-${attempt}@example.test`,
+        password: "wrong password",
+      });
+    assert.equal(response.status, 401);
+  }
+
+  const blocked = await request(app)
+    .post("/api/auth/login")
+    .set("Origin", ORIGIN)
+    .set("X-Forwarded-For", ip)
+    .send({ email: "one-more@example.test", password: "wrong password" });
+
+  assert.equal(blocked.status, 429);
+  assert.equal(blocked.body.message, "Too many login attempts, please try again later.");
+});
+
 test("note bodies are sanitised before storage and on update", async () => {
   const agent = await signupAgent({ email: "sanitize@example.test" });
   const malicious =
