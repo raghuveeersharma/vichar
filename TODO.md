@@ -9,7 +9,7 @@ This list reflects the current implementation and project documentation review.
 - [x] Add CI (for example, GitHub Actions) to install dependencies, lint, build, and run tests on every pull request and push.
 - [x] Add server-side request validation and sensible limits for email, name, note title, note HTML content, and folder name.
 - [x] Define and enforce an HTML sanitisation policy for user-authored and AI-produced rich-text content.
-- [ ] Add stricter authentication-abuse protection, especially for login attempts (IP and/or account-based throttling).
+- [x] Add stricter authentication-abuse protection, especially for login attempts (IP and/or account-based throttling).
 
 ## Priority 2 — production operations
 
