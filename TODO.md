@@ -13,7 +13,7 @@ This list reflects the current implementation and project documentation review.
 
 ## Priority 2 — production operations
 
-- [ ] Add a health/readiness endpoint for deployment platforms and uptime monitoring.
+- [x] Add liveness (`GET /health`) and MongoDB readiness (`GET /ready`) endpoints for deployment platforms and uptime monitoring.
 - [ ] Add structured server logging and error monitoring.
 - [ ] Document and test MongoDB backup and restore procedures.
 - [ ] Document the encryption-key backup, recovery, and rotation policy. The key must be retained; losing it makes encrypted notes unreadable.

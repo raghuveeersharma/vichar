@@ -10,6 +10,7 @@ import rateLimiter from "./middlewear/rateLimiter.js";
 import aiRateLimiter from "./middlewear/aiRateLimiter.js";
 import protect from "./middlewear/protect.js";
 import csrfOrigin from "./middlewear/csrfOrigin.js";
+import healthRouter from "./routes/healthRoutes.js";
 
 dotenv.config({ quiet: process.env.NODE_ENV === "test" });
 
@@ -19,6 +20,11 @@ dotenv.config({ quiet: process.env.NODE_ENV === "test" });
 const app = express();
 
 app.set("trust proxy", 1);
+
+// Deployment probes must work before CORS, CSRF, and rate-limit middleware.
+// They return only coarse status and expose no application data.
+app.use(healthRouter);
+
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN,

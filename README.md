@@ -163,6 +163,17 @@ Base path `/api`. Auth is a JWT in an httpOnly cookie, so requests must be made 
 | `POST` | `/grammar` | Proofread the note body. HTML in, HTML out. |
 | `POST` | `/format` | Restructure the note body. HTML in, HTML out. |
 
+### Deployment probes
+
+These endpoints are outside `/api`, require neither authentication nor an
+`Origin` header, and are not rate-limited. They return only service status, so
+they are safe for deployment platforms and uptime monitors.
+
+| Method | Path | Success response | Failure response | Purpose |
+|---|---|---|---|---|
+| `GET` | `/health` | `200 { "status": "ok" }` | — | Liveness: the Node process can serve HTTP. |
+| `GET` | `/ready` | `200 { "status": "ready" }` | `503 { "status": "not_ready" }` | Readiness: MongoDB is currently connected and the API can serve database-backed traffic. |
+
 ### Conventions
 
 - Another user's document returns **404, not 403**, so responses never confirm that an id exists.
@@ -221,6 +232,7 @@ Notable decisions:
 
 - **Frontend → Vercel.** `vercel.json` rewrites all paths to `/` for SPA deep links; Vercel checks the filesystem first, so `/sw.js` and `/manifest.webmanifest` are still served correctly. Any other host needs the same behaviour or service-worker registration fails.
 - **Backend → any Node host.** Set `NODE_ENV=production` so the auth cookie is `Secure` + `SameSite=None`, and set `CORS_ORIGIN` to the deployed frontend's exact origin. `trust proxy` is already enabled for TLS-terminating platforms.
+- **Health checks.** Configure the platform's liveness check to call `GET /health` and its readiness/traffic check to call `GET /ready`. A `503` from `/ready` means MongoDB is unavailable; the instance should not receive application traffic until it returns `200`.
 
 ## Notes for contributors
 
