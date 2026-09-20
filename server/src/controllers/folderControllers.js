@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Folder from "../modals/folder.modal.js";
 import Note from "../modals/note.modal.js";
 import { LIMITS, normalizedText } from "../libs/requestValidation.js";
+import { logError } from "../libs/logger.js";
 
 // Mounted behind `protect`, so req.user is always set. Same rule as notes: every
 // query filters on owner rather than looking a folder up by id and comparing
@@ -43,7 +44,7 @@ export async function getAllFolders(req, res) {
       unfiledCount: countByFolder.get("null") ?? 0,
     });
   } catch (error) {
-    console.error("Error in getAllFolders:", error);
+    logError(req, "folders.list_failed", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -66,7 +67,7 @@ export async function getFolderById(req, res) {
     const noteCount = await Note.countDocuments({ owner, folder: id });
     res.status(200).json({ ...folder.toObject(), noteCount });
   } catch (error) {
-    console.error("Error in getFolderById:", error);
+    logError(req, "folders.read_failed", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -97,7 +98,7 @@ export async function createFolder(req, res) {
         .status(409)
         .json({ message: "You already have a folder with that name" });
     }
-    console.error("Error in createFolder:", error);
+    logError(req, "folders.create_failed", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -131,7 +132,7 @@ export async function updateFolderById(req, res) {
         .status(409)
         .json({ message: "You already have a folder with that name" });
     }
-    console.error("Error in updateFolderById:", error);
+    logError(req, "folders.update_failed", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -161,7 +162,7 @@ export async function deleteFolderById(req, res) {
     }
     res.status(200).json({ message: "Folder deleted successfully" });
   } catch (error) {
-    console.error("Error in deleteFolderById:", error);
+    logError(req, "folders.delete_failed", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }

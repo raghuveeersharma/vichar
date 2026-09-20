@@ -178,6 +178,7 @@ they are safe for deployment platforms and uptime monitors.
 
 - Another user's document returns **404, not 403**, so responses never confirm that an id exists.
 - Validation failures → `400`, missing documents → `404`, unexpected errors → `500 { message: "Internal server error" }`.
+- Every response includes a server-generated `X-Request-Id`. Include it in a support report so the matching request and error logs can be found.
 - Requests are capped at 256 KB. Names are limited to 100 characters; emails to 254; passwords to 72 UTF-8 bytes; note titles to 200 characters; folder names to 60 characters; and note HTML to 128 KB. Oversized request bodies and note HTML return `413`.
 - Rate limiting is global: **50 requests / 15 min per IP**, applied before the auth routes. Login also has dedicated limits of **10 / 15 min per IP** and **5 / 15 min per email address**; the limits stack. `/api/ai` adds a tighter **15 / 15 min** limiter on top — the two stack, so 15 is a ceiling.
 
@@ -191,17 +192,18 @@ A flat three-layer flow: route → controller → model.
 server/src/
 ├── index.js          entry: JWT guard → cors → rate limit → json → cookies → routers → db().then(listen)
 ├── config/db.js
-├── libs/             token.js (JWT + cookie flags) · noteCrypto.js (AES-256-GCM) · gemini.js
+├── libs/             token.js (JWT + cookie flags) · noteCrypto.js (AES-256-GCM) · gemini.js · logger.js
 ├── routes/           auth · notes · folders · ai
 ├── controllers/      one file per resource
 ├── modals/           user · note · folder      ("models", misspelled)
-└── middlewear/       protect · rateLimiter · aiRateLimiter   ("middleware", misspelled)
+└── middlewear/       protect · requestLogger · rateLimiter · aiRateLimiter   ("middleware", misspelled)
 ```
 
 Notable decisions:
 
 - **Tenant isolation lives in the query, not in a check.** Handlers use `findOne({ _id: id, owner })` rather than fetching by id and comparing afterwards. A bare `findById` in a resource controller is a cross-tenant leak.
 - **Route guards are mounted at the router level** (`app.use("/api/notes", protect, router)`), so a newly added route cannot forget one.
+- **Logs are JSON lines.** Each completed request logs a generated request id, method, path, status, duration, and authenticated user id when available. Internal failures add a structured error event with the same id. Request bodies, note content, credentials, cookies, tokens, keys, and email fields are never logged.
 - **Passwords are hashed by a `pre("save")` hook**, so assigning plaintext and saving is always correct — never hash at the call site. `password` is `select: false`.
 - **Encryption is per-note and applied only at the storage boundary.** The stored `isEncrypted` flag is the only authority; the owner id is the GCM additional authenticated data, so a ciphertext moved between rows fails its tag check. A body that will not open is a placeholder in listings but a `500` on the single-note read, because that response populates the edit form.
 
@@ -233,6 +235,7 @@ Notable decisions:
 - **Frontend → Vercel.** `vercel.json` rewrites all paths to `/` for SPA deep links; Vercel checks the filesystem first, so `/sw.js` and `/manifest.webmanifest` are still served correctly. Any other host needs the same behaviour or service-worker registration fails.
 - **Backend → any Node host.** Set `NODE_ENV=production` so the auth cookie is `Secure` + `SameSite=None`, and set `CORS_ORIGIN` to the deployed frontend's exact origin. `trust proxy` is already enabled for TLS-terminating platforms.
 - **Health checks.** Configure the platform's liveness check to call `GET /health` and its readiness/traffic check to call `GET /ready`. A `503` from `/ready` means MongoDB is unavailable; the instance should not receive application traffic until it returns `200`.
+- **Logs and alerts.** Retain the backend's stdout and stderr JSON logs in the hosting platform or a log service. Alert on entries with `level: "error"`, sustained `statusCode >= 500` request events, and readiness-check failures. Use `requestId` to correlate an alert, an error event, and its completed request; do not configure a log collector to capture request bodies or headers.
 
 ## Notes for contributors
 

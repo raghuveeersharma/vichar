@@ -12,6 +12,7 @@ import {
   normalizedText,
   validNoteContent,
 } from "../libs/requestValidation.js";
+import { logError } from "../libs/logger.js";
 
 // Every handler here is mounted behind the `protect` middleware, so req.user is
 // always set. Reads and writes filter by owner instead of looking a note up by id
@@ -100,14 +101,14 @@ export async function getAllNotes(req, res) {
       try {
         return toClientNote(note, readableContent(note, owner));
       } catch (error) {
-        console.error(`Error decrypting note ${note._id}:`, error);
+        logError(req, "notes.decrypt_failed", error, { noteId: note._id.toString() });
         return { ...toClientNote(note, UNREADABLE_PLACEHOLDER), decryptError: true };
       }
     });
     // An empty list is a valid result, not a 404 — a new user simply has no notes.
     res.status(200).json(payload);
   } catch (error) {
-    console.error("Error in getAllNotes:", error);
+    logError(req, "notes.list_failed", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -175,7 +176,7 @@ export async function createNote(req, res) {
       note: toClientNote(newNote, safeContent),
     });
   } catch (error) {
-    console.error("Error in createNote:", error);
+    logError(req, "notes.create_failed", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -203,14 +204,14 @@ export async function getNoteById(req, res) {
       // Deliberately not the listing's placeholder: this response feeds the
       // edit form, and a placeholder there would be saved straight back over
       // the ciphertext, turning an unreadable note into a destroyed one.
-      console.error(`Error decrypting note ${note._id}:`, error);
+      logError(req, "notes.decrypt_failed", error, { noteId: note._id.toString() });
       return res
         .status(500)
         .json({ message: "Unable to decrypt this note" });
     }
     res.status(200).json(toClientNote(note, content));
   } catch (error) {
-    console.error("Error in getNoteById:", error);
+    logError(req, "notes.read_failed", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -281,7 +282,7 @@ export async function updateNoteById(req, res) {
       note: toClientNote(note, safeContent),
     });
   } catch (error) {
-    console.error("Error in updateNoteById:", error);
+    logError(req, "notes.update_failed", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -298,7 +299,7 @@ export async function deleteNoteById(req, res) {
     }
     res.status(200).json({ message: "Note deleted successfully" });
   } catch (error) {
-    console.error("Error in deleteNoteById:", error);
+    logError(req, "notes.delete_failed", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }

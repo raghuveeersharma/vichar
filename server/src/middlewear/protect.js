@@ -1,5 +1,6 @@
 import User from "../modals/user.modal.js";
 import { verifyToken, COOKIE_NAME, clearTokenCookie } from "../libs/token.js";
+import { logError } from "../libs/logger.js";
 
 // Guards every route it is mounted on: reads the httpOnly cookie, verifies the
 // JWT, and attaches the user document as req.user for downstream handlers.
@@ -27,7 +28,7 @@ export default async function protect(req, res, next) {
     req.user = user;
     next();
   } catch (error) {
-    console.error("Error in protect:", error);
+    logError(req, "auth.protection_failed", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
