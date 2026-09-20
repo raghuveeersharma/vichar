@@ -305,6 +305,7 @@ test("health and readiness probes distinguish a live process from a ready API", 
 
   assert.equal(health.status, 200);
   assert.deepEqual(health.body, { status: "ok" });
+  assert.match(health.headers["x-request-id"], /^[0-9a-f-]{36}$/i);
   assert.equal(ready.status, 200);
   assert.deepEqual(ready.body, { status: "ready" });
 
