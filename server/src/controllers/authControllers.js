@@ -10,6 +10,7 @@ import {
   normalizedText,
   validPassword,
 } from "../libs/requestValidation.js";
+import { logError } from "../libs/logger.js";
 
 export async function signup(req, res) {
   try {
@@ -38,7 +39,7 @@ export async function signup(req, res) {
     setTokenCookie(res, signToken(user._id));
     res.status(201).json({ user: user.toPublicJSON() });
   } catch (error) {
-    console.error("Error in signup:", error);
+    logError(req, "auth.signup_failed", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -66,7 +67,7 @@ export async function login(req, res) {
     setTokenCookie(res, signToken(user._id));
     res.status(200).json({ user: user.toPublicJSON() });
   } catch (error) {
-    console.error("Error in login:", error);
+    logError(req, "auth.login_failed", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -116,7 +117,7 @@ export async function updateEmail(req, res) {
     await user.save();
     res.status(200).json({ user: user.toPublicJSON() });
   } catch (error) {
-    console.error("Error in updateEmail:", error);
+    logError(req, "auth.email_update_failed", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -149,7 +150,7 @@ export async function updatePreferences(req, res) {
 
     res.status(200).json({ user: user.toPublicJSON() });
   } catch (error) {
-    console.error("Error in updatePreferences:", error);
+    logError(req, "auth.preferences_update_failed", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -187,7 +188,7 @@ export async function updatePassword(req, res) {
     setTokenCookie(res, signToken(user._id));
     res.status(200).json({ message: "Password updated successfully" });
   } catch (error) {
-    console.error("Error in updatePassword:", error);
+    logError(req, "auth.password_update_failed", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }

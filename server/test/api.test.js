@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, afterEach, before, test } from "node:test";
+import express from "express";
 import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import request from "supertest";
@@ -11,11 +12,17 @@ process.env.JWT_SECRET = "test-jwt-secret-that-is-long-enough";
 process.env.CORS_ORIGIN = ORIGIN;
 process.env.NODE_ENV = "test";
 
-const [{ default: app }, { default: Note }, { sanitizeRichText }] =
+const [
+  { default: app },
+  { default: Note },
+  { sanitizeRichText },
+  { createHealthRouter },
+] =
   await Promise.all([
     import("../src/app.js"),
     import("../src/modals/note.modal.js"),
     import("../src/libs/richText.js"),
+    import("../src/routes/healthRoutes.js"),
   ]);
 
 const NOTE_CONTENT_LIMIT = 128 * 1024;
@@ -290,4 +297,31 @@ test("a user cannot read, update, or delete another user's note", async () => {
   const ownerRead = await owner.get(`/api/notes/${id}`);
   assert.equal(ownerRead.status, 200);
   assert.equal(ownerRead.body.title, "A note");
+});
+
+test("health and readiness probes distinguish a live process from a ready API", async () => {
+  const health = await request(app).get("/health");
+  const ready = await request(app).get("/ready");
+
+  assert.equal(health.status, 200);
+  assert.deepEqual(health.body, { status: "ok" });
+  assert.match(health.headers["x-request-id"], /^[0-9a-f-]{36}$/i);
+  assert.equal(ready.status, 200);
+  assert.deepEqual(ready.body, { status: "ready" });
+
+  // Simulate a database outage without disturbing the shared test database.
+  const unavailableApp = express();
+  unavailableApp.use(
+    createHealthRouter({
+      databaseConnection: { readyState: mongoose.STATES.disconnected },
+    })
+  );
+
+  const unavailable = await request(unavailableApp).get("/ready");
+  const stillLive = await request(unavailableApp).get("/health");
+
+  assert.equal(unavailable.status, 503);
+  assert.deepEqual(unavailable.body, { status: "not_ready" });
+  assert.equal(stillLive.status, 200);
+  assert.deepEqual(stillLive.body, { status: "ok" });
 });

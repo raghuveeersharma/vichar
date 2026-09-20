@@ -10,6 +10,9 @@ import rateLimiter from "./middlewear/rateLimiter.js";
 import aiRateLimiter from "./middlewear/aiRateLimiter.js";
 import protect from "./middlewear/protect.js";
 import csrfOrigin from "./middlewear/csrfOrigin.js";
+import healthRouter from "./routes/healthRoutes.js";
+import requestLogger from "./middlewear/requestLogger.js";
+import { logError } from "./libs/logger.js";
 
 dotenv.config({ quiet: process.env.NODE_ENV === "test" });
 
@@ -19,6 +22,12 @@ dotenv.config({ quiet: process.env.NODE_ENV === "test" });
 const app = express();
 
 app.set("trust proxy", 1);
+app.use(requestLogger);
+
+// Deployment probes must work before CORS, CSRF, and rate-limit middleware.
+// They return only coarse status and expose no application data.
+app.use(healthRouter);
+
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN,
@@ -40,14 +49,14 @@ app.use("/api/ai", protect, aiRateLimiter, aiRouter);
 
 // express.json() reports parser failures outside route handlers. Give clients
 // the same JSON error shape as the rest of the API instead of its HTML default.
-app.use((error, _req, res, _next) => {
+app.use((error, req, res, _next) => {
   if (error.type === "entity.too.large") {
     return res.status(413).json({ message: "Request body is too large" });
   }
   if (error.type === "entity.parse.failed") {
     return res.status(400).json({ message: "Request body must be valid JSON" });
   }
-  console.error("Unhandled request error:", error);
+  logError(req, "http.unhandled_error", error);
   return res.status(500).json({ message: "Internal server error" });
 });
 

@@ -8,6 +8,7 @@ import {
 } from "../libs/gemini.js";
 import { sanitizeRichText } from "../libs/richText.js";
 import { validNoteContent } from "../libs/requestValidation.js";
+import { logError } from "../libs/logger.js";
 
 // Roughly 25k tokens of HTML. Past this the request gets slow and expensive for
 // a note editor, so refuse loudly instead of silently truncating the user's work.
@@ -121,7 +122,7 @@ function handler(action) {
       }
       res.status(200).json({ html: safeHtml, summary });
     } catch (error) {
-      console.error(`Error in ${action}:`, error);
+      logError(req, `ai.${action}_failed`, error);
       if (error.statusCode) {
         return res.status(error.statusCode).json({ message: error.message });
       }
