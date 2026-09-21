@@ -236,6 +236,7 @@ Notable decisions:
 - **Backend → any Node host.** Set `NODE_ENV=production` so the auth cookie is `Secure` + `SameSite=None`, and set `CORS_ORIGIN` to the deployed frontend's exact origin. `trust proxy` is already enabled for TLS-terminating platforms.
 - **Health checks.** Configure the platform's liveness check to call `GET /health` and its readiness/traffic check to call `GET /ready`. A `503` from `/ready` means MongoDB is unavailable; the instance should not receive application traffic until it returns `200`.
 - **Logs and alerts.** Retain the backend's stdout and stderr JSON logs in the hosting platform or a log service. Alert on entries with `level: "error"`, sustained `statusCode >= 500` request events, and readiness-check failures. Use `requestId` to correlate an alert, an error event, and its completed request; do not configure a log collector to capture request bodies or headers.
+- **Recovery.** Use the [backup, recovery, and encryption-key runbook](docs/backup-and-recovery.md). The MongoDB archive and the exact `NOTE_ENCRYPTION_KEY` that protects its encrypted notes are one recovery set; retain and test both together.
 
 ## Notes for contributors
 

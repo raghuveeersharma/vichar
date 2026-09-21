@@ -31,6 +31,12 @@ jobs:
         working-directory: server
         run: npm test
 
+      - name: Validate backup and recovery tools
+        run: |
+          bash -n scripts/mongodb-backup.sh scripts/mongodb-restore-drill.sh
+          scripts/mongodb-backup.sh --help
+          scripts/mongodb-restore-drill.sh --help
+
       - name: Install frontend dependencies
         working-directory: front
         run: npm ci

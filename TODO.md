@@ -15,8 +15,9 @@ This list reflects the current implementation and project documentation review.
 
 - [x] Add liveness (`GET /health`) and MongoDB readiness (`GET /ready`) endpoints for deployment platforms and uptime monitoring.
 - [x] Add structured JSON request/error logging with request IDs and deployment-ready alerting guidance.
-- [ ] Document and test MongoDB backup and restore procedures.
-- [ ] Document the encryption-key backup, recovery, and rotation policy. The key must be retained; losing it makes encrypted notes unreadable.
+- [x] Document MongoDB backup and restore procedures, including executable backup/restore-drill tools with CI syntax validation.
+- [ ] Run and record the initial production-equivalent restore drill before launch.
+- [x] Document the encryption-key backup, recovery, and rotation policy. The key must be retained; losing it makes encrypted notes unreadable.
 - [ ] Add deployment smoke checks for the frontend, API, CORS, secure cookies, database connectivity, and PWA registration.
 - [x] Fail at boot when `CORS_ORIGIN` is unset, matching the documented requirement.
 
