@@ -1,0 +1,56 @@
+name: Deployment smoke checks
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    # This runs only against the trusted default branch: PRs must not receive
+    # deployment credentials, and regular CI already tests the application.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+
+      - name: Install browser-probe dependencies
+        working-directory: front
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: front
+        run: npx playwright install --with-deps chromium
+
+      - name: Require smoke-check configuration
+        env:
+          VICHAR_FRONTEND_URL: ${{ vars.VICHAR_FRONTEND_URL }}
+          VICHAR_API_URL: ${{ vars.VICHAR_API_URL }}
+          VICHAR_SMOKE_EMAIL: ${{ secrets.VICHAR_SMOKE_EMAIL }}
+          VICHAR_SMOKE_PASSWORD: ${{ secrets.VICHAR_SMOKE_PASSWORD }}
+        run: |
+          for setting in VICHAR_FRONTEND_URL VICHAR_API_URL VICHAR_SMOKE_EMAIL VICHAR_SMOKE_PASSWORD; do
+            if [[ -z "${!setting}" ]]; then
+              echo "::error::${setting} is not configured"
+              exit 1
+            fi
+          done
+
+      - name: Verify deployed frontend and API
+        env:
+          VICHAR_FRONTEND_URL: ${{ vars.VICHAR_FRONTEND_URL }}
+          VICHAR_API_URL: ${{ vars.VICHAR_API_URL }}
+          VICHAR_SMOKE_EMAIL: ${{ secrets.VICHAR_SMOKE_EMAIL }}
+          VICHAR_SMOKE_PASSWORD: ${{ secrets.VICHAR_SMOKE_PASSWORD }}
+        run: node scripts/deployment-smoke-check.mjs
