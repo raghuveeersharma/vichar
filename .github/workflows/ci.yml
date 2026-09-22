@@ -37,6 +37,9 @@ jobs:
           scripts/mongodb-backup.sh --help
           scripts/mongodb-restore-drill.sh --help
 
+      - name: Test deployment smoke-check tool
+        run: node --test scripts/deployment-smoke-check.test.mjs
+
       - name: Install frontend dependencies
         working-directory: front
         run: npm ci
