@@ -33,7 +33,7 @@ This list reflects the current implementation and project documentation review.
 - [x] Add route-level code splitting / lazy loading. Route pages and editor code now load on demand.
 - [ ] Add automated accessibility checks and manually test keyboard, screen-reader, contrast, dialog, and editor behaviour.
 - [ ] Add browser/device testing for offline mode, PWA installation, service-worker updates, and speech recognition.
-- [ ] Make offline limitations visible to users: encrypted notes cannot be edited offline; AI editing and dictation need a connection.
+- [x] Make offline limitations visible to users: encrypted notes cannot be edited offline; AI editing and dictation need a connection.
 
 ## Documentation cleanup
 

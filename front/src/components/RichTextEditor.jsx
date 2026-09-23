@@ -69,7 +69,12 @@ const ToolbarButton = ({ onClick, active, disabled, label, children }) => (
  * TipTap editor over an HTML string. `value` is only read when it differs from
  * what the editor already holds, so typing never fights the parent's state.
  */
-const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
+const RichTextEditor = ({
+  value,
+  onChange,
+  placeholder = "Write...",
+  disabled = false,
+}) => {
   // Which AI action is in flight, or null. Both buttons disable together so a
   // second request cannot overwrite the first one's result.
   const [aiAction, setAiAction] = useState(null);
@@ -115,7 +120,7 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
   const speech = useSpeechToText({
     onFinalResult: (text) => {
       const spoken = text.trim();
-      if (!editor || !spoken) return;
+      if (!editor || !spoken || disabled) return;
       // Inserted at the cursor rather than appended, so dictation can be used to
       // fill in the middle of an existing note. The trailing space is what keeps
       // consecutive phrases from running together.
@@ -156,8 +161,23 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
     }
   }, [value, editor]);
 
+  // An encrypted note must not accumulate plaintext edits while offline. Make
+  // the editor genuinely read-only as well as disabling the page's save action;
+  // toolbar commands otherwise still mutate TipTap's in-memory document.
+  useEffect(() => {
+    editor?.setEditable(!disabled);
+  }, [editor, disabled]);
+
+  useEffect(() => {
+    if (disabled && speech.isListening) speech.stop();
+  }, [disabled, speech]);
+
   const runAI = async (action) => {
-    if (!editor) return;
+    if (!editor || disabled) return;
+    if (!isOnline) {
+      toast.error("AI editing needs a connection");
+      return;
+    }
     // End dictation first. The mic button is disabled while a request is in
     // flight, so leaving it running would strand the user with no way to switch
     // it off — and the reply arrives as a whole-document `setContent`, which
@@ -206,12 +226,22 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
 
   return (
     <div className="glass-inset">
+      {!isOnline && !disabled && (
+        <div className="mx-2 mt-2 rounded-box border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-content">
+          AI editing and dictation need a connection.
+        </div>
+      )}
       {/* Sticky only from `md:` up. Wrapped at 375px this bar is two rows of
           44px targets plus the AI actions — roughly a fifth of a phone
           viewport — and parking that permanently under the navbar costs more
           than the convenience is worth. Wrapping beats horizontal scroll
           either way: a scrolled sticky bar hides buttons with no affordance. */}
-      <div className="glass-panel m-2 flex flex-wrap items-center gap-1 p-2 md:sticky md:top-[calc(var(--navbar-h)+0.5rem)] md:z-30">
+      <fieldset
+        disabled={disabled}
+        className="contents"
+        aria-label={disabled ? "Editing unavailable while offline" : undefined}
+      >
+        <div className="glass-panel m-2 flex flex-wrap items-center gap-1 p-2 md:sticky md:top-[calc(var(--navbar-h)+0.5rem)] md:z-30">
         <ToolbarButton
           label="Bold"
           active={state.bold}
@@ -311,7 +341,7 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
         <ToolbarButton
           label={speech.isListening ? "Stop dictation" : "Dictate"}
           active={speech.isListening}
-          disabled={busy}
+          disabled={disabled || busy || !isOnline}
           onClick={toggleDictation}
         >
           {speech.isListening ? (
@@ -338,7 +368,7 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
             icon={SparklesIcon}
             iconClassName={aiAction === "grammar" ? "animate-pulse" : ""}
             onClick={() => runAI("grammar")}
-            disabled={busy}
+            disabled={disabled || busy || !isOnline}
           >
             {aiAction === "grammar" ? "Fixing..." : "Fix grammar"}
           </Button>
@@ -348,12 +378,13 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write..." }) => {
             icon={WandSparklesIcon}
             iconClassName={aiAction === "format" ? "animate-pulse" : ""}
             onClick={() => runAI("format")}
-            disabled={busy}
+            disabled={disabled || busy || !isOnline}
           >
             {aiAction === "format" ? "Formatting..." : "Format"}
           </Button>
         </div>
-      </div>
+        </div>
+      </fieldset>
 
       <EditorContent editor={editor} />
     </div>

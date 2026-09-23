@@ -276,6 +276,10 @@ const SettingsPage = () => {
                 Turning this off only hides the button. Notes you already
                 encrypted stay encrypted and keep opening normally.
               </p>
+              <p className="text-sm text-warning">
+                Encrypted notes can only be created and edited while online.
+                Their decrypted contents are never stored for offline use.
+              </p>
             </div>
           </div>
         </div>

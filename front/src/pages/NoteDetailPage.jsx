@@ -23,12 +23,14 @@ import useCachedQuery from "../hooks/useCachedQuery";
 import { noteKey } from "../libs/cache";
 import { isLocalId } from "../libs/outbox";
 import { useAuth } from "../context/auth-context";
+import useOnline from "../hooks/useOnline";
 
 const NoteDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { user } = useAuth();
   const owner = user?._id;
+  const isOnline = useOnline();
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -153,6 +155,10 @@ const NoteDetailPage = () => {
 
   const handelSubmit = async (e, id) => {
     e.preventDefault();
+    if (fetched?.isEncrypted && !isOnline) {
+      toast.error("An encrypted note can only be edited while you're online");
+      return;
+    }
     if (!data.title.trim() || isEmptyHtml(data.content)) {
       toast.error("All fields are required");
       return;
@@ -257,6 +263,9 @@ const NoteDetailPage = () => {
     );
   }
 
+  const encryptedNote = Boolean(fetched?.isEncrypted);
+  const offlineEncryptedEdit = encryptedNote && !isOnline;
+
   return (
     /* See CreatePage: no opaque wrapper, or the background layer is covered. */
     <div className="min-h-screen">
@@ -297,6 +306,15 @@ const NoteDetailPage = () => {
                   </span>
                 )}
               </h1>
+              {offlineEncryptedEdit && (
+                <div className="alert mb-4 border border-warning/30 bg-warning/10 text-warning-content" role="status">
+                  <CloudOffIcon className="size-5 shrink-0" />
+                  <span className="text-sm">
+                    This encrypted note cannot be edited offline. Reconnect to
+                    continue; its plaintext is never saved on this device.
+                  </span>
+                </div>
+              )}
               <form onSubmit={(e) => handelSubmit(e, id)}>
                 <div className="form-control mb-4">
                   <label className="label">
@@ -308,6 +326,7 @@ const NoteDetailPage = () => {
                     className="input input-bordered input-glass"
                     value={data.title}
                     onChange={(e) => edit({ title: e.target.value })}
+                    disabled={offlineEncryptedEdit}
                     maxLength={200}
                     required
                   />
@@ -318,7 +337,7 @@ const NoteDetailPage = () => {
                 <FolderSelect
                   value={data.folder ?? UNFILED}
                   onChange={(folder) => edit({ folder })}
-                  disabled={saving}
+                  disabled={saving || offlineEncryptedEdit}
                 />
                 <div className="form-control mb-4">
                   <label className="label">
@@ -328,6 +347,7 @@ const NoteDetailPage = () => {
                     value={data.content}
                     onChange={(content) => edit({ content })}
                     placeholder="enter note content"
+                    disabled={offlineEncryptedEdit}
                   />
                 </div>
                 <div className="card-actions justify-end">
@@ -335,6 +355,7 @@ const NoteDetailPage = () => {
                     type="submit"
                     variant="primary"
                     loading={saving}
+                    disabled={offlineEncryptedEdit}
                   >
                     {saving ? "Saving..." : "Save Changes"}
                   </Button>

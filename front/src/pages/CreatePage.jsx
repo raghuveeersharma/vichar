@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, LockIcon } from "lucide-react";
+import { ArrowLeftIcon, CloudOffIcon, LockIcon } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { createNote as saveNote, isOfflineRefusal } from "../libs/notes";
@@ -9,6 +9,7 @@ import Button from "../components/Button";
 import FolderSelect from "../components/FolderSelect";
 import { UNFILED } from "../libs/folders";
 import { useAuth } from "../context/auth-context";
+import useOnline from "../hooks/useOnline";
 
 const CreatePage = () => {
   // Opt-in per account, from Settings. The server enforces the same flag on
@@ -16,6 +17,7 @@ const CreatePage = () => {
   // standing between a request and an encrypted note.
   const { user } = useAuth();
   const canEncrypt = Boolean(user?.encryptedNotesEnabled);
+  const isOnline = useOnline();
   // `?folder=<id>` is how "new note in this folder" arrives from a folder page.
   // Read once as the initial value rather than tracked: the select below owns the
   // choice from here on, and re-reading the URL would overwrite a change the user
@@ -151,6 +153,18 @@ const CreatePage = () => {
                     placeholder="enter note content"
                   />
                 </div>
+                {canEncrypt && !isOnline && (
+                  <div
+                    className="alert mb-4 border border-warning/30 bg-warning/10 text-warning-content"
+                    role="status"
+                  >
+                    <CloudOffIcon className="size-5 shrink-0" />
+                    <span className="text-sm">
+                      Encrypted notes can only be created while online. Their
+                      contents are never kept in this device's offline queue.
+                    </span>
+                  </div>
+                )}
                 {/* Wraps on a narrow screen instead of squeezing two labels
                     onto one line. The encrypted action is the outline variant:
                     it is the deliberate choice, not the default one. */}
@@ -161,7 +175,7 @@ const CreatePage = () => {
                       variant="outline-primary"
                       icon={LockIcon}
                       loading={submitting === "encrypted"}
-                      disabled={loading}
+                      disabled={loading || !isOnline}
                       onClick={() => createNote({ encrypted: true })}
                     >
                       {submitting === "encrypted"
