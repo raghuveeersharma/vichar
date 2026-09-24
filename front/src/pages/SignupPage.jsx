@@ -28,7 +28,7 @@ const SignupPage = () => {
     try {
       setLoading(true);
       await signup({ name: name.trim(), email: email.trim(), password });
-      toast.success("Account created");
+      toast.success("Account created — check your inbox to verify your email");
       navigate("/", { replace: true });
     } catch (error) {
       console.error("Error signing up:", error);

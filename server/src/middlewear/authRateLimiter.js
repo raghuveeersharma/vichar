@@ -32,3 +32,20 @@ export const loginAccountLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+export const verificationResendLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  keyGenerator: (req) => `user:${req.user._id.toString()}`,
+  message: { message: "Too many verification emails, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+export const verificationAttemptLimiter = rateLimit({
+  windowMs: WINDOW_MS,
+  max: 20,
+  message: { message: "Too many verification attempts, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

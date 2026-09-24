@@ -23,7 +23,7 @@ This list reflects the current implementation and project documentation review.
 
 ## Priority 3 — authentication and account capabilities
 
-- [ ] Add email verification.
+- [x] Add email verification.
 - [ ] Add a password-reset flow.
 - [ ] Add account deletion, including a clear policy for deleting notes, folders, cached data, and encrypted data.
 - [ ] Decide whether signup should avoid revealing that an email address is already registered.

@@ -15,14 +15,18 @@ process.env.NODE_ENV = "test";
 const [
   { default: app },
   { default: Note },
+  { default: User },
   { sanitizeRichText },
   { createHealthRouter },
+  { createEmailVerificationToken },
 ] =
   await Promise.all([
     import("../src/app.js"),
     import("../src/modals/note.modal.js"),
+    import("../src/modals/user.modal.js"),
     import("../src/libs/richText.js"),
     import("../src/routes/healthRoutes.js"),
+    import("../src/libs/emailVerification.js"),
   ]);
 
 const NOTE_CONTENT_LIMIT = 128 * 1024;
@@ -85,6 +89,79 @@ test("signup establishes a cookie-authenticated session", async () => {
   assert.equal(response.status, 200);
   assert.equal(response.body.user.email, "session@example.test");
   assert.equal(response.body.user.password, undefined);
+  assert.equal(response.body.user.emailVerified, false);
+});
+
+test("email-verification links are signed, expire in storage, and are single-use", async () => {
+  const email = "verify@example.test";
+  await signupAgent({ email });
+  const user = await User.findOne({ email });
+  const verification = createEmailVerificationToken(user._id);
+  await User.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        emailVerificationTokenHash: verification.tokenHash,
+        emailVerificationExpiresAt: verification.expiresAt,
+      },
+    }
+  );
+
+  const verified = await request(app)
+    .post("/api/auth/verify-email")
+    .set("Origin", ORIGIN)
+    .send({ token: verification.token });
+  assert.equal(verified.status, 200, verified.body.message);
+  assert.equal(verified.body.user.emailVerified, true);
+
+  const reused = await request(app)
+    .post("/api/auth/verify-email")
+    .set("Origin", ORIGIN)
+    .send({ token: verification.token });
+  assert.equal(reused.status, 400);
+
+  const stored = await User.findById(user._id).select(
+    "+emailVerificationTokenHash +emailVerificationExpiresAt"
+  );
+  assert.equal(stored.emailVerificationTokenHash, undefined);
+  assert.equal(stored.emailVerificationExpiresAt, undefined);
+
+  const expired = createEmailVerificationToken(user._id);
+  await User.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        emailVerified: false,
+        emailVerificationTokenHash: expired.tokenHash,
+        emailVerificationExpiresAt: new Date(Date.now() - 1),
+      },
+    }
+  );
+  const expiredResponse = await request(app)
+    .post("/api/auth/verify-email")
+    .set("Origin", ORIGIN)
+    .send({ token: expired.token });
+  assert.equal(expiredResponse.status, 400);
+});
+
+test("resending verification invalidates the previous link", async () => {
+  const email = "resend@example.test";
+  const agent = await signupAgent({ email });
+  const user = await User.findOne({ email }).select(
+    "+emailVerificationTokenHash +emailVerificationExpiresAt"
+  );
+  const previousHash = user.emailVerificationTokenHash;
+
+  const response = await agent
+    .post("/api/auth/email-verification/resend")
+    .set("Origin", ORIGIN);
+  assert.equal(response.status, 204, response.body.message);
+
+  const updated = await User.findById(user._id).select(
+    "+emailVerificationTokenHash +emailVerificationExpiresAt"
+  );
+  assert.notEqual(updated.emailVerificationTokenHash, previousHash);
+  assert.ok(updated.emailVerificationExpiresAt > new Date());
 });
 
 test("login attempts are capped per account even across source IPs", async () => {

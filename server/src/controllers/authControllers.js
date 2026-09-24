@@ -11,6 +11,24 @@ import {
   validPassword,
 } from "../libs/requestValidation.js";
 import { logError } from "../libs/logger.js";
+import {
+  createEmailVerificationToken,
+  hashVerificationId,
+  readEmailVerificationToken,
+} from "../libs/emailVerification.js";
+import { sendVerificationEmail } from "../libs/mailer.js";
+
+async function issueVerificationEmail(user) {
+  const verification = createEmailVerificationToken(user._id);
+  user.emailVerificationTokenHash = verification.tokenHash;
+  user.emailVerificationExpiresAt = verification.expiresAt;
+  await user.save();
+  await sendVerificationEmail({
+    email: user.email,
+    name: user.name,
+    token: verification.token,
+  });
+}
 
 export async function signup(req, res) {
   try {
@@ -36,11 +54,73 @@ export async function signup(req, res) {
       email: emailResult.value,
       password: passwordResult.value,
     });
+    await issueVerificationEmail(user);
     setTokenCookie(res, signToken(user._id));
     res.status(201).json({ user: user.toPublicJSON() });
   } catch (error) {
     logError(req, "auth.signup_failed", error);
     res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+// This route intentionally does not require a session: the email link may be
+// opened in another browser. Possession of the signed, random token is the
+// credential, and its stored digest is atomically consumed below.
+export async function verifyEmail(req, res) {
+  try {
+    const { token } = req.body ?? {};
+    if (typeof token !== "string" || token.length > 2048) {
+      return res.status(400).json({ message: "A verification token is required" });
+    }
+
+    let payload;
+    try {
+      payload = readEmailVerificationToken(token);
+    } catch {
+      return res.status(400).json({ message: "Invalid or expired verification link" });
+    }
+
+    const user = await User.findOneAndUpdate(
+      {
+        _id: payload.id,
+        emailVerified: { $ne: true },
+        emailVerificationTokenHash: hashVerificationId(payload.jti),
+        emailVerificationExpiresAt: { $gt: new Date() },
+      },
+      {
+        $set: { emailVerified: true, emailVerifiedAt: new Date() },
+        $unset: {
+          emailVerificationTokenHash: 1,
+          emailVerificationExpiresAt: 1,
+        },
+      },
+      { new: true }
+    );
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired verification link" });
+    }
+
+    res.status(200).json({ user: user.toPublicJSON() });
+  } catch (error) {
+    logError(req, "auth.email_verification_failed", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+export async function resendEmailVerification(req, res) {
+  try {
+    if (req.user.emailVerified) return res.status(204).end();
+
+    // Reload it so the selected:false token fields and current document state
+    // cannot be accidentally overwritten by a stale protect() document.
+    const user = await User.findById(req.user._id).select(
+      "+emailVerificationTokenHash +emailVerificationExpiresAt"
+    );
+    await issueVerificationEmail(user);
+    return res.status(204).end();
+  } catch (error) {
+    logError(req, "auth.email_verification_resend_failed", error);
+    return res.status(503).json({ message: "Verification email is unavailable" });
   }
 }
 
@@ -114,7 +194,10 @@ export async function updateEmail(req, res) {
     }
 
     user.email = nextEmail;
+    user.emailVerified = false;
+    user.emailVerifiedAt = undefined;
     await user.save();
+    await issueVerificationEmail(user);
     res.status(200).json({ user: user.toPublicJSON() });
   } catch (error) {
     logError(req, "auth.email_update_failed", error);

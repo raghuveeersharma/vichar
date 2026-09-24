@@ -8,13 +8,20 @@ import Button from "../components/Button";
 // Both forms send the current password: the API re-verifies it before changing
 // anything, so a stolen cookie alone cannot take over the account.
 const SettingsPage = () => {
-  const { user, updateEmail, updatePassword, updatePreferences } = useAuth();
+  const {
+    user,
+    updateEmail,
+    updatePassword,
+    updatePreferences,
+    resendEmailVerification,
+  } = useAuth();
 
   const [emailForm, setEmailForm] = useState({
     email: user?.email || "",
     currentPassword: "",
   });
   const [emailLoading, setEmailLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
@@ -67,12 +74,24 @@ const SettingsPage = () => {
     try {
       setEmailLoading(true);
       await updateEmail({ email: email.trim(), currentPassword });
-      toast.success("Email updated");
+      toast.success("Email updated — check your inbox to verify it");
       setEmailForm((prev) => ({ ...prev, currentPassword: "" }));
     } catch (error) {
       reportError(error, "Failed to update email");
     } finally {
       setEmailLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    try {
+      setResendLoading(true);
+      await resendEmailVerification();
+      toast.success("Verification email sent");
+    } catch (error) {
+      reportError(error, "Could not send verification email");
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -129,6 +148,19 @@ const SettingsPage = () => {
               <p className="text-base-content/80 mb-2">
                 You log in with this address.
               </p>
+              {!user?.emailVerified && (
+                <div className="alert alert-warning mb-5">
+                  <span>Your email address has not been verified.</span>
+                  <Button
+                    size="sm"
+                    variant="outline-primary"
+                    loading={resendLoading}
+                    onClick={handleResendVerification}
+                  >
+                    {resendLoading ? "Sending..." : "Resend link"}
+                  </Button>
+                </div>
+              )}
               <form onSubmit={handelEmailSubmit}>
                 <div className="form-control mb-4">
                   <label className="label">

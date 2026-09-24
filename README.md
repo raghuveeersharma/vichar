@@ -79,6 +79,8 @@ Both packages read from their own `.env`, which is gitignored.
 | `NOTE_ENCRYPTION_KEY` | no | Must decode to exactly 32 bytes (`openssl rand -hex 32`, or base64) — anything else throws rather than being padded. Without it, everything works except creating an encrypted note, which answers `503`. |
 | `GEMINI_API_KEY` | no | Without it the server still boots and `/api/ai/*` answers `503`. |
 | `GEMINI_MODEL` | no | Overrides the default `gemini-3.6-flash`. |
+| `SMTP_HOST`, `SMTP_PORT`, `EMAIL_FROM` | **yes** | SMTP host, port, and sender for account-verification email. The server refuses to start without them. |
+| `SMTP_USER`, `SMTP_PASSWORD` | usually | SMTP credentials. Both may be omitted only for a trusted unauthenticated relay. |
 
 > **Back up `NOTE_ENCRYPTION_KEY` outside `.env`.** Changing or losing it makes every existing encrypted note permanently unreadable, and it must be identical across any environments sharing a database.
 
@@ -131,6 +133,8 @@ Base path `/api`. Auth is a JWT in an httpOnly cookie, so requests must be made 
 | `POST` | `/signup` | — | Create an account (name, email, password). |
 | `POST` | `/login` | — | Sets the auth cookie. One message for both unknown email and wrong password. |
 | `POST` | `/logout` | — | Clears the auth cookie. |
+| `POST` | `/verify-email` | — | Consumes a signed, one-use verification token. |
+| `POST` | `/email-verification/resend` | ✔ | Sends a replacement verification link; three per hour per account. |
 | `GET` | `/me` | ✔ | The current session user. The SPA calls this on boot. |
 | `PATCH` | `/email` | ✔ | Re-verifies the current password. |
 | `PATCH` | `/password` | ✔ | Re-verifies the current password. |
