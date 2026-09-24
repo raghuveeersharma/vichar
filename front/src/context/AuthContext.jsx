@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import api from "../libs/axios";
 import { clearCache } from "../libs/cache";
 import { AuthContext } from "./auth-context";
@@ -127,6 +127,17 @@ export const AuthProvider = ({ children }) => {
     setUser(res.data.user);
   };
 
+  const resendEmailVerification = async () => {
+    await api.post("/auth/email-verification/resend");
+  };
+
+  const verifyEmail = useCallback(async (token) => {
+    const res = await api.post("/auth/verify-email", { token });
+    // The token can be opened in another browser, but when it is opened in the
+    // current session keep the local session mirror accurate immediately.
+    setUser(res.data.user);
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -138,6 +149,8 @@ export const AuthProvider = ({ children }) => {
         updateEmail,
         updatePassword,
         updatePreferences,
+        resendEmailVerification,
+        verifyEmail,
       }}
     >
       {children}
