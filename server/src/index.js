@@ -1,6 +1,7 @@
 import db from "./config/db.js";
 import app from "./app.js";
 import { logger } from "./libs/logger.js";
+import { hasEmailConfiguration } from "./libs/mailer.js";
 
 // Fail fast rather than signing tokens with `undefined`, which jsonwebtoken
 // would reject at request time with a confusing error.
@@ -12,6 +13,11 @@ if (!process.env.JWT_SECRET) {
 // CORS and the CSRF Origin check both rely on one explicit frontend origin.
 if (!process.env.CORS_ORIGIN) {
   logger.error("startup.configuration_invalid", { setting: "CORS_ORIGIN" });
+  process.exit(1);
+}
+
+if (process.env.NODE_ENV !== "test" && !hasEmailConfiguration()) {
+  logger.error("startup.configuration_invalid", { setting: "SMTP_HOST, SMTP_PORT, EMAIL_FROM" });
   process.exit(1);
 }
 
