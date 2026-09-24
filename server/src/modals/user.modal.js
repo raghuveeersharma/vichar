@@ -37,6 +37,22 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerifiedAt: Date,
+    // Only a SHA-256 digest of the random JWT id is persisted. A database
+    // backup therefore cannot be used to turn an unexpired link into a login
+    // or verification capability.
+    emailVerificationTokenHash: {
+      type: String,
+      select: false,
+    },
+    emailVerificationExpiresAt: {
+      type: Date,
+      select: false,
+    },
   },
   { timestamps: true }
 );
@@ -58,6 +74,7 @@ userSchema.methods.toPublicJSON = function () {
     _id: this._id,
     name: this.name,
     email: this.email,
+    emailVerified: this.emailVerified ?? false,
     // Sent on every auth response so the SPA can decide what to render without
     // a second request — accounts created before this field existed have no
     // value stored, hence the `??` rather than a migration.
