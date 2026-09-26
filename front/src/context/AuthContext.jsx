@@ -82,8 +82,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const signup = async (payload) => {
-    const res = await api.post("/auth/signup", payload);
-    setUser(res.data.user);
+    await api.post("/auth/signup", payload);
   };
 
   const login = async (payload) => {
@@ -119,6 +118,14 @@ export const AuthProvider = ({ children }) => {
     await api.patch("/auth/password", payload);
   };
 
+  const deleteAccount = async (payload) => {
+    await api.delete("/auth/account", { data: payload });
+    // The account no longer exists, so neither its cached notes nor its queued
+    // writes have an owner to sync to. Clear everything before routes redirect.
+    setUser(null);
+    await clearCache();
+  };
+
   // Account preferences ride on the same `user` object every page already reads,
   // so flipping one re-renders whatever depends on it — CreatePage picks up the
   // encrypted-notes toggle with no fetch of its own.
@@ -148,6 +155,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         updateEmail,
         updatePassword,
+        deleteAccount,
         updatePreferences,
         resendEmailVerification,
         verifyEmail,

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { ArrowLeftIcon, KeyRoundIcon, LockIcon, MailIcon } from "lucide-react";
+import { ArrowLeftIcon, KeyRoundIcon, LockIcon, MailIcon, Trash2Icon } from "lucide-react";
 import { useAuth } from "../context/auth-context";
 import PasswordInput from "../components/PasswordInput";
 import Button from "../components/Button";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 // Both forms send the current password: the API re-verifies it before changing
 // anything, so a stolen cookie alone cannot take over the account.
@@ -12,6 +13,7 @@ const SettingsPage = () => {
     user,
     updateEmail,
     updatePassword,
+    deleteAccount,
     updatePreferences,
     resendEmailVerification,
   } = useAuth();
@@ -29,6 +31,8 @@ const SettingsPage = () => {
     confirmPassword: "",
   });
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [deletionPassword, setDeletionPassword] = useState("");
+  const [deletionDialogOpen, setDeletionDialogOpen] = useState(false);
 
   // The toggle renders straight off the session user rather than mirroring it
   // into local state: `updatePreferences` replaces that user, so the switch
@@ -123,6 +127,26 @@ const SettingsPage = () => {
       reportError(error, "Failed to update password");
     } finally {
       setPasswordLoading(false);
+    }
+  };
+
+  const handleDeletionSubmit = (event) => {
+    event.preventDefault();
+    if (!deletionPassword) {
+      toast.error("Enter your current password to continue");
+      return;
+    }
+    setDeletionDialogOpen(true);
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      await deleteAccount({ currentPassword: deletionPassword });
+      toast.success("Your account and data have been deleted");
+    } catch (error) {
+      reportError(error, "Could not delete account");
+    } finally {
+      setDeletionPassword("");
     }
   };
 
@@ -313,9 +337,48 @@ const SettingsPage = () => {
                 Their decrypted contents are never stored for offline use.
               </p>
             </div>
+
+            <div className="mx-6 h-px bg-base-content/10" />
+
+            <div className="card-body">
+              <h2 className="card-title text-xl text-error">
+                <Trash2Icon className="size-5" />
+                Delete account
+              </h2>
+              <p className="text-base-content/80 mb-2">
+                This permanently deletes your account, all notes and folders,
+                including encrypted notes, and this device&apos;s offline cache.
+                It cannot be undone or recovered.
+              </p>
+              <form onSubmit={handleDeletionSubmit}>
+                <PasswordInput
+                  label="Current password"
+                  className="mb-6"
+                  placeholder="••••••••"
+                  value={deletionPassword}
+                  onChange={(event) => setDeletionPassword(event.target.value)}
+                  autoComplete="current-password"
+                  maxLength={72}
+                  required
+                />
+                <div className="card-actions justify-end">
+                  <Button type="submit" variant="outline-error" icon={Trash2Icon}>
+                    Delete account
+                  </Button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       </div>
+      <ConfirmDialog
+        open={deletionDialogOpen}
+        title="Permanently delete your account?"
+        message="All notes, folders, encrypted data, queued offline changes, and this account will be deleted immediately. This cannot be undone."
+        confirmLabel="Delete permanently"
+        onConfirm={handleDeleteAccount}
+        onClose={() => setDeletionDialogOpen(false)}
+      />
     </div>
   );
 };
