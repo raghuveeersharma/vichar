@@ -49,3 +49,39 @@ export const verificationAttemptLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+const passwordResetRequestMessage = {
+  message: "Too many password-reset requests, please try again later.",
+};
+
+// Use both a source cap and a normalised-email cap. The request endpoint is
+// intentionally non-enumerating, but without the email cap an attacker could
+// still repeatedly mail one address from many IPs.
+export const passwordResetRequestIpLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: passwordResetRequestMessage,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+export const passwordResetRequestAccountLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  keyGenerator: (req) => {
+    const email = req.body?.email;
+    if (typeof email !== "string") return `invalid:${ipKeyGenerator(req.ip)}`;
+    return `email:${email.trim().toLowerCase()}`;
+  },
+  message: passwordResetRequestMessage,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+export const passwordResetAttemptLimiter = rateLimit({
+  windowMs: WINDOW_MS,
+  max: 20,
+  message: { message: "Too many password-reset attempts, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

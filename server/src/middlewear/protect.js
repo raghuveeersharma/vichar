@@ -19,10 +19,17 @@ export default async function protect(req, res, next) {
       return res.status(401).json({ message: "Session expired" });
     }
 
-    const user = await User.findById(payload.id);
+    const user = await User.findById(payload.id).select("+sessionVersion");
     if (!user) {
       clearTokenCookie(res); // account deleted while the token was still valid
       return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    // Treat legacy JWTs/documents without this field as version zero, so the
+    // rollout does not sign everyone out until their first credential change.
+    if ((payload.sessionVersion ?? 0) !== (user.sessionVersion ?? 0)) {
+      clearTokenCookie(res);
+      return res.status(401).json({ message: "Session expired" });
     }
 
     req.user = user;
