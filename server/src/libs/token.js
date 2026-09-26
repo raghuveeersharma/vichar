@@ -7,8 +7,8 @@ const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // so the cookie must be SameSite=None, which browsers only accept with Secure.
 const isProduction = () => process.env.NODE_ENV === "production";
 
-export function signToken(userId) {
-  return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+export function signToken(userId, sessionVersion = 0) {
+  return jwt.sign({ id: userId, sessionVersion }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
 }

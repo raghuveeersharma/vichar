@@ -17,6 +17,18 @@ Tenancy is per-user: every note and folder carries an `owner`, and a user can on
 - **Cookie auth** — the JWT lives in an httpOnly cookie and is never touched by JavaScript.
 - **CSRF protection** — every state-changing API request must have an `Origin` exactly matching `CORS_ORIGIN`.
 
+## Limitations
+
+- Encrypted notes require a connection to create and edit. Their plaintext is
+  intentionally never cached offline, so they cannot be opened from the offline
+  copy.
+- Gemini editing and browser speech dictation require a network connection.
+  Dictation relies on the browser Web Speech API; it is supported in Chrome and
+  Edge and is unavailable in Firefox.
+- `NOTE_ENCRYPTION_KEY` is not recoverable from the database. Losing or
+  replacing it permanently prevents existing encrypted notes from being read.
+  Follow the [backup and key policy](docs/backup-and-recovery.md).
+
 ## Repository layout
 
 Two independently-deployed packages in one repo. There is no root `package.json` or workspace tooling — install and run each package separately.
@@ -130,15 +142,18 @@ Base path `/api`. Auth is a JWT in an httpOnly cookie, so requests must be made 
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `POST` | `/signup` | — | Create an account (name, email, password). |
+| `POST` | `/signup` | — | Requests account creation (name, email, password). Always returns the same `202` response, so it does not reveal whether an email already has an account. |
 | `POST` | `/login` | — | Sets the auth cookie. One message for both unknown email and wrong password. |
 | `POST` | `/logout` | — | Clears the auth cookie. |
 | `POST` | `/verify-email` | — | Consumes a signed, one-use verification token. |
+| `POST` | `/password-reset/request` | — | Always returns `204`; sends a one-use reset link only if the email has an account. |
+| `POST` | `/password-reset/confirm` | — | Consumes the reset token and sets `newPassword`; invalidates all existing sessions. |
 | `POST` | `/email-verification/resend` | ✔ | Sends a replacement verification link; three per hour per account. |
 | `GET` | `/me` | ✔ | The current session user. The SPA calls this on boot. |
 | `PATCH` | `/email` | ✔ | Re-verifies the current password. |
 | `PATCH` | `/password` | ✔ | Re-verifies the current password. |
 | `PATCH` | `/preferences` | ✔ | e.g. `encryptedNotesEnabled`. |
+| `DELETE` | `/account` | ✔ | Requires `currentPassword`; permanently deletes the account and all owned notes and folders. |
 
 ### `/api/notes` (all guarded)
 
@@ -242,6 +257,7 @@ Notable decisions:
 - **Logs and alerts.** Retain the backend's stdout and stderr JSON logs in the hosting platform or a log service. Alert on entries with `level: "error"`, sustained `statusCode >= 500` request events, and readiness-check failures. Use `requestId` to correlate an alert, an error event, and its completed request; do not configure a log collector to capture request bodies or headers.
 - **Recovery.** Use the [backup, recovery, and encryption-key runbook](docs/backup-and-recovery.md). The MongoDB archive and the exact `NOTE_ENCRYPTION_KEY` that protects its encrypted notes are one recovery set; retain and test both together.
 - **Release verification.** Configure and run the [deployment smoke check](docs/deployment-smoke-checks.md) after every release. It checks the deployed frontend, PWA assets, API, CORS, secure cookies, and database connectivity from outside the deployment.
+- **Launch checklist.** Use the [deployment checklist](docs/deployment-checklist.md) to verify environment values, custom domains, MongoDB, cookies, encryption-key escrow, smoke tests, and rollback planning.
 
 ## Notes for contributors
 

@@ -76,6 +76,11 @@ const LoginPage = () => {
               maxLength={72}
               required
             />
+            <div className="text-right -mt-3 mb-5">
+              <Link to="/forgot-password" className="link link-primary text-sm">
+                Forgot password?
+              </Link>
+            </div>
             <Button
               type="submit"
               variant="primary"

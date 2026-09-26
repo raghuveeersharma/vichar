@@ -24,24 +24,24 @@ This list reflects the current implementation and project documentation review.
 ## Priority 3 — authentication and account capabilities
 
 - [x] Add email verification.
-- [ ] Add a password-reset flow.
-- [ ] Add account deletion, including a clear policy for deleting notes, folders, cached data, and encrypted data.
-- [ ] Decide whether signup should avoid revealing that an email address is already registered.
+- [x] Add a password-reset flow.
+- [x] Add account deletion, including a clear policy for deleting notes, folders, cached data, and encrypted data.
+- [x] Avoid revealing whether signup email addresses are already registered; signup has a uniform accepted response and creates no session.
 
 ## Priority 4 — frontend quality and performance
 
 - [x] Add route-level code splitting / lazy loading. Route pages and editor code now load on demand.
-- [ ] Add automated accessibility checks and manually test keyboard, screen-reader, contrast, dialog, and editor behaviour.
+- [ ] Add automated accessibility checks and manually test keyboard, screen-reader, contrast, dialog, and editor behaviour. Automated axe checks now cover the public account routes; manual device and assistive-technology testing remains before launch.
 - [ ] Add browser/device testing for offline mode, PWA installation, service-worker updates, and speech recognition.
 - [x] Make offline limitations visible to users: encrypted notes cannot be edited offline; AI editing and dictation need a connection.
 
 ## Documentation cleanup
 
-- [ ] Replace `front/README.md`, which is still the default Vite template, with frontend-specific Vichar setup, commands, environment variables, and architecture notes.
+- [x] Replace `front/README.md` with frontend-specific Vichar setup, commands, environment variables, and architecture notes.
 - [x] Move `front/src/.env.example` to the conventional `front/.env.example` location, then update setup instructions accordingly.
-- [ ] Add an API reference with request and response examples, or publish an OpenAPI specification.
-- [ ] Add a deployment checklist covering environment values, MongoDB indexes/setup, custom domains, CORS, cookies, encryption-key backup, verification, and rollback.
-- [ ] Add a limitations section to the README covering offline encrypted-note behaviour, network requirements for AI/dictation, browser support for dictation, and irreversible encryption-key loss.
+- [x] Add an API reference with request and response examples.
+- [x] Add a deployment checklist covering environment values, MongoDB indexes/setup, custom domains, CORS, cookies, encryption-key backup, verification, and rollback.
+- [x] Add a limitations section to the README covering offline encrypted-note behaviour, network requirements for AI/dictation, browser support for dictation, and irreversible encryption-key loss.
 
 ## Product backlog (optional)
 

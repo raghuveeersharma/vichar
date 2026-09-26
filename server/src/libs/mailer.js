@@ -68,3 +68,30 @@ export async function sendVerificationEmail({ email, name, token }) {
     html: `<p>Hi ${escapeHtml(greeting)},</p><p><a href="${url}">Verify your email address</a></p><p>This link expires in 24 hours. If you did not create a Vichar account, you can ignore this email.</p>`,
   });
 }
+
+export async function sendPasswordResetEmail({ email, name, token }) {
+  if (process.env.NODE_ENV === "test") return;
+
+  const config = smtpConfiguration();
+  if (!config) {
+    const error = new Error("Email delivery is not configured");
+    error.code = "EMAIL_NOT_CONFIGURED";
+    throw error;
+  }
+
+  const resetUrl = new URL("/reset-password", process.env.CORS_ORIGIN);
+  // Keep the credential out of request logs, referrers, and third-party
+  // resources. The SPA reads this fragment and posts it over HTTPS.
+  resetUrl.hash = token;
+  const url = resetUrl.toString();
+  const greeting = name || "there";
+
+  const transporter = nodemailer.createTransport(config);
+  await transporter.sendMail({
+    from: config.from,
+    to: email,
+    subject: "Reset your Vichar password",
+    text: `Hi ${greeting},\n\nReset your password: ${url}\n\nThis link expires in one hour and can be used once. If you did not request a password reset, you can ignore this email.`,
+    html: `<p>Hi ${escapeHtml(greeting)},</p><p><a href="${url}">Reset your password</a></p><p>This link expires in one hour and can be used once. If you did not request a password reset, you can ignore this email.</p>`,
+  });
+}

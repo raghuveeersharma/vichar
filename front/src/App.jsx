@@ -17,6 +17,8 @@ const LoginPage = lazy(() => import("./pages/LoginPage"));
 const SignupPage = lazy(() => import("./pages/SignupPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const VerifyEmailPage = lazy(() => import("./pages/VerifyEmailPage"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 
 const RouteLoading = () => (
   <div
@@ -42,6 +44,8 @@ const App = () => {
           {/* The token stays in the URL fragment until this page POSTs it; the
               endpoint itself deliberately works without an existing session. */}
           <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           {/* Signed out only */}
           <Route element={<GuestRoute />}>
             <Route path="/login" element={<LoginPage />} />

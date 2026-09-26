@@ -53,6 +53,24 @@ const userSchema = new mongoose.Schema(
       type: Date,
       select: false,
     },
+    // Password-reset links use the same digest-only, one-use pattern as email
+    // verification. Neither the original link nor its random id is stored.
+    passwordResetTokenHash: {
+      type: String,
+      select: false,
+    },
+    passwordResetExpiresAt: {
+      type: Date,
+      select: false,
+    },
+    // Included in every session JWT. Incrementing it invalidates all existing
+    // browser sessions after a password reset without keeping a session table.
+    sessionVersion: {
+      type: Number,
+      default: 0,
+      min: 0,
+      select: false,
+    },
   },
   { timestamps: true }
 );

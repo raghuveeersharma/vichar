@@ -16,22 +16,27 @@ const [
   { default: app },
   { default: Note },
   { default: User },
+  { default: Folder },
   { sanitizeRichText },
   { createHealthRouter },
   { createEmailVerificationToken },
+  { createPasswordResetToken },
 ] =
   await Promise.all([
     import("../src/app.js"),
     import("../src/modals/note.modal.js"),
     import("../src/modals/user.modal.js"),
+    import("../src/modals/folder.modal.js"),
     import("../src/libs/richText.js"),
     import("../src/routes/healthRoutes.js"),
     import("../src/libs/emailVerification.js"),
+    import("../src/libs/passwordReset.js"),
   ]);
 
 const NOTE_CONTENT_LIMIT = 128 * 1024;
 
 let mongo;
+let loginIpSuffix = 1;
 
 before(async () => {
   mongo = await MongoMemoryServer.create();
@@ -51,13 +56,22 @@ async function signupAgent({
   name = "Test User",
   email,
   password = "correct horse battery staple",
+  authenticate = true,
 } = {}) {
   const agent = request.agent(app);
   const response = await agent
     .post("/api/auth/signup")
     .set("Origin", ORIGIN)
     .send({ name, email, password });
-  assert.equal(response.status, 201, response.body.message);
+  assert.equal(response.status, 202, response.body.message);
+  if (authenticate) {
+    const login = await agent
+      .post("/api/auth/login")
+      .set("Origin", ORIGIN)
+      .set("X-Forwarded-For", `198.18.0.${loginIpSuffix++}`)
+      .send({ email, password });
+    assert.equal(login.status, 200, login.body.message);
+  }
   return agent;
 }
 
@@ -82,7 +96,7 @@ test("unsafe requests require the configured Origin", async () => {
   assert.equal(response.body.message, "Invalid request origin");
 });
 
-test("signup establishes a cookie-authenticated session", async () => {
+test("login establishes a cookie-authenticated session after signup", async () => {
   const agent = await signupAgent({ email: "session@example.test" });
   const response = await agent.get("/api/auth/me");
 
@@ -92,9 +106,32 @@ test("signup establishes a cookie-authenticated session", async () => {
   assert.equal(response.body.user.emailVerified, false);
 });
 
+test("signup responses do not reveal whether an email already has an account", async () => {
+  const payload = {
+    name: "Enumeration test",
+    email: "signup-private@example.test",
+    password: "correct horse battery staple",
+  };
+  const first = await request(app)
+    .post("/api/auth/signup")
+    .set("Origin", ORIGIN)
+    .send(payload);
+  const duplicate = await request(app)
+    .post("/api/auth/signup")
+    .set("Origin", ORIGIN)
+    .send(payload);
+
+  assert.equal(first.status, 202);
+  assert.equal(duplicate.status, 202);
+  assert.deepEqual(first.body, duplicate.body);
+  assert.equal(first.headers["set-cookie"], undefined);
+  assert.equal(duplicate.headers["set-cookie"], undefined);
+  assert.equal(await User.countDocuments({ email: payload.email }), 1);
+});
+
 test("email-verification links are signed, expire in storage, and are single-use", async () => {
   const email = "verify@example.test";
-  await signupAgent({ email });
+  await signupAgent({ email, authenticate: false });
   const user = await User.findOne({ email });
   const verification = createEmailVerificationToken(user._id);
   await User.updateOne(
@@ -164,9 +201,115 @@ test("resending verification invalidates the previous link", async () => {
   assert.ok(updated.emailVerificationExpiresAt > new Date());
 });
 
+test("password-reset requests do not reveal accounts and send one-use links", async () => {
+  const email = "password-reset-request@example.test";
+  await signupAgent({ email });
+
+  const known = await request(app)
+    .post("/api/auth/password-reset/request")
+    .set("Origin", ORIGIN)
+    .send({ email });
+  const unknown = await request(app)
+    .post("/api/auth/password-reset/request")
+    .set("Origin", ORIGIN)
+    .send({ email: "not-registered@example.test" });
+  assert.equal(known.status, 204);
+  assert.equal(unknown.status, 204);
+
+  const user = await User.findOne({ email }).select(
+    "+passwordResetTokenHash +passwordResetExpiresAt"
+  );
+  assert.ok(user.passwordResetTokenHash);
+  assert.ok(user.passwordResetExpiresAt > new Date());
+});
+
+test("a password-reset link is single-use and invalidates existing sessions", async () => {
+  const email = "password-reset-confirm@example.test";
+  const oldPassword = "correct horse battery staple";
+  const newPassword = "a new correct horse battery staple";
+  const agent = await signupAgent({ email, password: oldPassword });
+  const user = await User.findOne({ email });
+  const reset = createPasswordResetToken(user._id);
+  await User.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        passwordResetTokenHash: reset.tokenHash,
+        passwordResetExpiresAt: reset.expiresAt,
+      },
+    }
+  );
+
+  const completed = await request(app)
+    .post("/api/auth/password-reset/confirm")
+    .set("Origin", ORIGIN)
+    .send({ token: reset.token, newPassword });
+  assert.equal(completed.status, 204, completed.body.message);
+
+  const reused = await request(app)
+    .post("/api/auth/password-reset/confirm")
+    .set("Origin", ORIGIN)
+    .send({ token: reset.token, newPassword });
+  assert.equal(reused.status, 400);
+
+  const oldSession = await agent.get("/api/auth/me");
+  assert.equal(oldSession.status, 401);
+
+  const newSession = await request(app)
+    .post("/api/auth/login")
+    .set("Origin", ORIGIN)
+    .send({ email, password: newPassword });
+  assert.equal(newSession.status, 200, newSession.body.message);
+
+  const stored = await User.findById(user._id).select(
+    "+passwordResetTokenHash +passwordResetExpiresAt +sessionVersion"
+  );
+  assert.equal(stored.passwordResetTokenHash, undefined);
+  assert.equal(stored.passwordResetExpiresAt, undefined);
+  assert.equal(stored.sessionVersion, 1);
+});
+
+test("account deletion requires the password and permanently removes owned data", async () => {
+  const email = "delete-account@example.test";
+  const password = "correct horse battery staple";
+  const agent = await signupAgent({ email, password });
+  const user = await User.findOne({ email });
+  const folder = await agent
+    .post("/api/folders")
+    .set("Origin", ORIGIN)
+    .send({ name: "To delete" });
+  assert.equal(folder.status, 201, folder.body.message);
+  const note = await agent
+    .post("/api/notes")
+    .set("Origin", ORIGIN)
+    .send(notePayload({ folder: folder.body.folder._id }));
+  assert.equal(note.status, 201, note.body.message);
+
+  const rejected = await agent
+    .delete("/api/auth/account")
+    .set("Origin", ORIGIN)
+    .send({ currentPassword: "wrong password" });
+  assert.equal(rejected.status, 401);
+  assert.equal(await User.countDocuments({ _id: user._id }), 1);
+  assert.equal(await Note.countDocuments({ owner: user._id }), 1);
+  assert.equal(await Folder.countDocuments({ owner: user._id }), 1);
+
+  const deleted = await agent
+    .delete("/api/auth/account")
+    .set("Origin", ORIGIN)
+    .send({ currentPassword: password });
+  assert.equal(deleted.status, 204, deleted.body.message);
+  assert.equal(await User.countDocuments({ _id: user._id }), 0);
+  assert.equal(await Note.countDocuments({ owner: user._id }), 0);
+  assert.equal(await Folder.countDocuments({ owner: user._id }), 0);
+
+  const formerSession = await agent.get("/api/auth/me");
+  assert.equal(formerSession.status, 401);
+});
+
 test("login attempts are capped per account even across source IPs", async () => {
   const email = "login-account-limit@example.test";
-  await signupAgent({ email });
+  await signupAgent({ email, authenticate: false });
 
   for (let attempt = 1; attempt <= 5; attempt += 1) {
     const response = await request(app)

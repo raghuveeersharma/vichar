@@ -1,12 +1,62 @@
-# React + Vite
+# Vichar frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The Vichar frontend is a React 19 single-page application built with Vite. It
+is independently deployed from the Express API, normally to a static host with
+SPA fallback (the included `vercel.json` config supplies this for Vercel).
 
-Currently, two official plugins are available:
+## Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+npm install
+cp .env.example .env
+npm run dev
+```
 
-## Expanding the ESLint configuration
+Set the required API base URL in `.env`:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```dotenv
+VITE_SERVER_URL="http://localhost:5000/api"
+```
+
+The value must include `/api`. The shared axios client sends cookies with every
+request, so the backend's `CORS_ORIGIN` must exactly match the frontend origin.
+
+## Commands
+
+```bash
+npm run dev        # local Vite server
+npm run build      # production bundle in dist/
+npm run preview    # serve the built bundle locally
+npm run lint       # ESLint
+npm run test:a11y  # Playwright + axe checks (requires Chromium)
+```
+
+Install the browser once before running accessibility tests locally:
+
+```bash
+npx playwright install chromium
+```
+
+## Architecture
+
+- `src/pages/` contains route-level pages, lazily loaded by `App.jsx`.
+- `src/context/AuthContext.jsx` owns cookie-session rehydration, public user
+  state, and authenticated account actions. The JWT itself stays in an httpOnly
+  cookie and is never exposed to JavaScript.
+- `src/libs/` contains the API client plus IndexedDB cache and offline outbox.
+  API responses are not stored in the service-worker Cache API.
+- `src/hooks/useCachedQuery.js` is the cache-first read layer. Writes update
+  both the in-memory view and the owner-scoped IndexedDB records.
+- `src/components/RichTextEditor.jsx` contains TipTap editing, Gemini actions,
+  and browser speech-recognition integration.
+
+The PWA service worker precaches only the application shell. It does not cache
+API responses, so cookie-protected data cannot outlive its authorization.
+Encrypted note bodies are deliberately withheld from IndexedDB; they require a
+network connection to read and edit.
+
+## Testing boundaries
+
+`tests/accessibility.spec.js` checks public account pages for automatically
+detectable WCAG 2/2.1 AA issues. It complements, but does not replace, manual
+keyboard, screen-reader, editor, offline, PWA-install, and device testing.
