@@ -80,6 +80,10 @@ drill successful:
    `notes.owner_1_folder_1_createdAt_-1`, and the unique folders owner/name
    index.
 
+`server/scripts/verify-restore.js` automates checks 2 and 5 and opens every
+encrypted note with the supplied key (read-only, prints no content). Record each
+drill in [restore-drill-log.md](restore-drill-log.md).
+
 Tear down the restore environment and securely delete its data after the drill.
 
 ## Production recovery
