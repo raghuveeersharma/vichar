@@ -81,6 +81,10 @@ const RichTextEditor = ({
   const isOnline = useOnline();
 
   const editor = useEditor({
+    // Created after mount, not during render: building it in render handed the
+    // sync effect below an already-destroyed editor (getHTML threw on a null
+    // schema) and the editor never appeared. Found by the signed-in axe checks.
+    immediatelyRender: false,
     extensions: [StarterKit, Placeholder.configure({ placeholder })],
     content: value || "",
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
