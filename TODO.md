@@ -31,7 +31,7 @@ This list reflects the current implementation and project documentation review.
 ## Priority 4 — frontend quality and performance
 
 - [x] Add route-level code splitting / lazy loading. Route pages and editor code now load on demand.
-- [ ] Add automated accessibility checks and manually test keyboard, screen-reader, contrast, dialog, and editor behaviour. Automated axe checks now cover the public account routes; manual device and assistive-technology testing remains before launch.
+- [ ] Add automated accessibility checks and manually test keyboard, screen-reader, contrast, dialog, and editor behaviour. Automated axe checks now cover the public account routes, the signed-in pages (home, create, note editor, folder, settings) and the open confirm/folder dialogs, with the API mocked; manual keyboard, screen-reader, contrast and device testing remains before launch.
 - [ ] Add browser/device testing for offline mode, PWA installation, service-worker updates, and speech recognition.
 - [x] Make offline limitations visible to users: encrypted notes cannot be edited offline; AI editing and dictation need a connection.
 
