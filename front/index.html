@@ -20,6 +20,20 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="Vichar" />
     <title>Vichar</title>
+    <!-- Sets the theme before first paint so a light-theme user never sees a
+         flash of forest. Same resolve logic as src/libs/theme.js. -->
+    <script>
+      try {
+        var p = localStorage.getItem("vichar:theme");
+        if (p !== "forest" && p !== "light") p = "system";
+        var t = p === "system"
+          ? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "forest")
+          : p;
+        document.documentElement.setAttribute("data-theme", t);
+        document.querySelector('meta[name="theme-color"]')
+          .setAttribute("content", t === "light" ? "#ffffff" : "#171212");
+      } catch (e) {}
+    </script>
   </head>
   <body >
     <div id="root"></div>

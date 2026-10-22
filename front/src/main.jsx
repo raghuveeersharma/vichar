@@ -6,6 +6,9 @@ import { BrowserRouter } from "react-router";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import PWAPrompts from "./components/PWAPrompts.jsx";
+import { initTheme } from "./libs/theme";
+
+initTheme();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
