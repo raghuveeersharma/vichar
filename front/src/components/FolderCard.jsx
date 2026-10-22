@@ -21,7 +21,7 @@ const FolderCard = ({ folder, unfiled = false, onRename, onDelete }) => {
         <div className="flex items-start justify-between gap-2">
           <Icon
             className={`size-6 shrink-0 ${
-              unfiled ? "text-base-content/50" : "text-primary"
+              unfiled ? "text-base-content/60" : "text-primary"
             }`}
           />
           {!unfiled && (
