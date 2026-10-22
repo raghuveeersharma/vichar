@@ -91,7 +91,7 @@ const RichTextEditor = ({
     editorProps: {
       attributes: {
         class:
-          "prose prose-invert prose-sm sm:prose-base max-w-none min-h-[12rem] px-4 py-3 focus:outline-none",
+          "prose [[data-theme=forest]_&]:prose-invert prose-sm sm:prose-base max-w-none min-h-[12rem] px-4 py-3 focus:outline-none",
       },
     },
   });
@@ -360,7 +360,7 @@ const RichTextEditor = ({
             audio arrives, so committing it would put words in the note that
             were never said. It lands there when it comes back as final. */}
         {speech.isListening && interimPreview && (
-          <span className="basis-full truncate text-xs italic text-base-content/50 sm:basis-auto sm:max-w-[18rem]">
+          <span className="basis-full truncate text-xs italic text-base-content/60 sm:basis-auto sm:max-w-[18rem]">
             {interimPreview}
           </span>
         )}

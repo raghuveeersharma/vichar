@@ -1,10 +1,27 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { ArrowLeftIcon, KeyRoundIcon, LockIcon, MailIcon, Trash2Icon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  KeyRoundIcon,
+  LockIcon,
+  MailIcon,
+  MonitorIcon,
+  MoonIcon,
+  PaletteIcon,
+  SunIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { useAuth } from "../context/auth-context";
 import PasswordInput from "../components/PasswordInput";
 import Button from "../components/Button";
 import ConfirmDialog from "../components/ConfirmDialog";
+import useTheme from "../hooks/useTheme";
+
+const THEME_OPTIONS = [
+  { value: "system", label: "System", icon: MonitorIcon },
+  { value: "forest", label: "Dark", icon: MoonIcon },
+  { value: "light", label: "Light", icon: SunIcon },
+];
 
 // Both forms send the current password: the API re-verifies it before changing
 // anything, so a stolen cookie alone cannot take over the account.
@@ -17,6 +34,7 @@ const SettingsPage = () => {
     updatePreferences,
     resendEmailVerification,
   } = useAuth();
+  const { preference, setTheme } = useTheme();
 
   const [emailForm, setEmailForm] = useState({
     email: user?.email || "",
@@ -164,6 +182,39 @@ const SettingsPage = () => {
               stacked on a phone, separate glass slabs read as unrelated
               screens and eat vertical space to the gap between them. */}
           <div className="glass-panel-strong">
+            <div className="card-body">
+              <h2 className="card-title text-xl">
+                <PaletteIcon className="size-5 text-primary" />
+                Appearance
+              </h2>
+              <p className="text-base-content/80 mb-2">
+                Saved on this device only. System follows your device setting.
+              </p>
+              <div role="radiogroup" aria-label="Theme" className="flex flex-wrap gap-2">
+                {THEME_OPTIONS.map((option) => {
+                  const { value, label } = option;
+                  const Icon = option.icon;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={preference === value}
+                      onClick={() => setTheme(value)}
+                      className={`btn btn-sm gap-1.5 max-md:min-h-[44px] ${
+                        preference === value ? "btn-primary" : "btn-outline"
+                      }`}
+                    >
+                      <Icon className="size-4" />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mx-6 h-px bg-base-content/10" />
+
             <div className="card-body">
               <h2 className="card-title text-xl">
                 <MailIcon className="size-5 text-primary" />

@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
+// Forest (dark) is pinned here; theme.spec.js covers the light theme.
+test.use({ colorScheme: "dark" });
+
 // Signed-in routes. The API is mocked at the network layer so the suite stays
 // deterministic and needs no database; the session is seeded through the same
 // localStorage mirror AuthProvider reads on boot.

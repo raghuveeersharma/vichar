@@ -252,7 +252,7 @@ const NoteDetailPage = () => {
                 server, so they are never stored on this device — reconnect to read
                 or edit it.
               </p>
-              <span className="flex items-center gap-2 text-xs text-base-content/50">
+              <span className="flex items-center gap-2 text-xs text-base-content/60">
                 <CloudOffIcon className="size-4" />
                 waiting for a connection
               </span>

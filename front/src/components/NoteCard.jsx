@@ -96,7 +96,7 @@ const NoteCard = ({ note, setNotes, showFolder = true }) => {
           <p
             className={`line-clamp-3 grow-0 ${
               note.decryptError || note.contentCached === false
-                ? "italic text-base-content/50"
+                ? "italic text-base-content/60"
                 : "text-base-content/80"
             } ${note.decryptError ? "text-error/80" : ""}`}
           >

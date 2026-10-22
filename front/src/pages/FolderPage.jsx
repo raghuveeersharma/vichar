@@ -173,7 +173,7 @@ const FolderPage = () => {
           <div className="flex min-w-0 items-center gap-3">
             <Icon
               className={`size-7 shrink-0 ${
-                isUnfiled ? "text-base-content/50" : "text-primary"
+                isUnfiled ? "text-base-content/60" : "text-primary"
               }`}
             />
             <div className="min-w-0">
