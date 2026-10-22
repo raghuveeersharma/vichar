@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
+// Forest (dark) is pinned here; theme.spec.js covers the light theme.
+test.use({ colorScheme: "dark" });
+
 // These routes do not need a live API to render their meaningful UI. Keeping
 // the test public makes it deterministic in CI while still checking landmarks,
 // labels, keyboard semantics, and contrast on the account journeys everybody
